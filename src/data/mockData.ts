@@ -1,0 +1,281 @@
+import { BuddyProfile, ChatThread, DrinkType, HangoutAlert, MoodType, PaymentEtiquette } from '../types';
+
+export const DRINK_METADATA: Record<DrinkType, { label: string; icon: string; bg: string; color: string }> = {
+  craft: { label: 'Крафтове пиво', icon: '🍺', bg: 'bg-amber-950/60 border-amber-800/40', color: 'text-amber-400' },
+  beer: { label: 'Лагер / Ель', icon: '🍻', bg: 'bg-amber-950/60 border-amber-800/40', color: 'text-amber-300' },
+  wine: { label: 'Сухе вино', icon: '🍷', bg: 'bg-rose-950/60 border-rose-800/40', color: 'text-rose-400' },
+  cocktail: { label: 'Коктейлі', icon: '🍸', bg: 'bg-emerald-950/60 border-emerald-800/40', color: 'text-emerald-400' },
+  whiskey: { label: 'Віскі / Бурбон', icon: '🥃', bg: 'bg-orange-950/60 border-orange-800/40', color: 'text-orange-400' },
+  cider: { label: 'Яблучний сидр', icon: '🍏', bg: 'bg-lime-950/60 border-lime-800/40', color: 'text-lime-400' },
+  shots: { label: 'Шоти / Настоянки', icon: '🍶', bg: 'bg-violet-950/60 border-violet-800/40', color: 'text-violet-400' },
+  non_alcoholic: { label: 'Безалкогольне / Чай', icon: '☕', bg: 'bg-cyan-950/60 border-cyan-800/40', color: 'text-cyan-400' },
+};
+
+export const MOOD_METADATA: Record<MoodType, { label: string; emoji: string }> = {
+  chill_talk: { label: 'Поговорити за життя', emoji: '💬' },
+  coding_it: { label: 'Обговорити IT та код', emoji: '💻' },
+  board_games: { label: 'Настілки під келих', emoji: '🎲' },
+  bar_crawl: { label: 'Бар-хопінг по закладах', emoji: '🚶‍♂️' },
+  sports_football: { label: 'Спорт / Футбол на великому екрані', emoji: '⚽' },
+  deep_philosophy: { label: 'Глибока філософія', emoji: '🌌' },
+  live_music: { label: 'Жива музика / Джаз', emoji: '🎷' },
+};
+
+export const PAYMENT_METADATA: Record<PaymentEtiquette, { label: string; badge: string }> = {
+  split_50_50: { label: 'Рахунок навпіл (50/50)', badge: '⚖️ 50/50' },
+  each_for_themselves: { label: 'Кожен сам за себе', badge: '🧾 Роздільно' },
+  i_treat: { label: 'Я пригощаю сьогодні', badge: '🎁 Пригощаю' },
+  rounds: { label: 'По черзі беремо раунди', badge: '🔄 Раундами' },
+};
+
+export interface InterestCategory {
+  id: string;
+  label: string;
+  emoji: string;
+  keywords: string[];
+}
+
+export const POPULAR_INTERESTS: InterestCategory[] = [
+  { id: 'it', label: 'IT & Код', emoji: '💻', keywords: ['React Native & Expo', 'IT', 'код', 'AI'] },
+  { id: 'board_games', label: 'Настілки & Шахи', emoji: '🎲', keywords: ['Настільні ігри', 'Шахи'] },
+  { id: 'travel', label: 'Подорожі', emoji: '🏔️', keywords: ['Подорожі Карпатами', 'Мандрівки'] },
+  { id: 'sports', label: 'Футбол & Спорт', emoji: '⚽', keywords: ['Ліга чемпіонів', 'Спорт', 'Футбол', 'Автомобілі'] },
+  { id: 'craft_beer', label: 'Крафт & Пиво', emoji: '🍺', keywords: ['Крафтове пивоваріння', 'DIPA', 'пиво'] },
+  { id: 'wine_culture', label: 'Вина & Енологія', emoji: '🍷', keywords: ['Французькі вина', 'Вино', 'Pinot'] },
+  { id: 'cocktails', label: 'Міксологія & Бари', emoji: '🍸', keywords: ['Міксологія', 'спікізі', 'Негроні'] },
+  { id: 'cinema_books', label: 'Кіно & Книги', emoji: '🎬', keywords: ['Кіно 90-х', 'Книги', 'Світова історія'] },
+  { id: 'design_photo', label: 'Дизайн & Фото', emoji: '📸', keywords: ['Архітектура Києва', 'Плівкове фото', 'дизайн'] },
+  { id: 'humor_standup', label: 'Стендап & Комікси', emoji: '🎙️', keywords: ['Стендап', 'Комікси', 'Котики'] },
+  { id: 'psychology', label: 'Психологія', emoji: '🧠', keywords: ['Психологія', 'філософія'] },
+];
+
+export const INITIAL_BUDDIES: BuddyProfile[] = [
+  {
+    id: 'buddy-1',
+    name: 'Богдан',
+    age: 28,
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80',
+    tagline: 'React Native дев, шукаю компанію на крафтове пиво на Подолі 🍺',
+    bio: 'Закінчив важкий робочий спринт. Хочу посидіти у Squat 17b або Varvar Bar, подискутувати про мобільну архітектуру, AI-агентів чи просто випити хорошого DIPA та перевести подих.',
+    locationName: 'Київ, Поділ',
+    distanceKm: 0.6,
+    coordinates: { lat: 50.463, lng: 30.518 },
+    preferredDrinks: ['craft', 'cider'],
+    paymentRule: 'split_50_50',
+    currentMood: 'chill_talk',
+    favoriteBars: ['Squat 17b', 'Varvar Bar Podil', 'Punkcraft'],
+    talkTopics: ['React Native & Expo', 'Подорожі Карпатами', 'Стендап', 'Крафтове пивоваріння'],
+    online: true,
+    activeCheckIn: {
+      barName: 'Squat 17b',
+      note: 'Сиджу у дворику біля ліхтаря, п’ю сидр. Підсідайте!',
+      sinceTime: '15 хв тому',
+    },
+  },
+  {
+    id: 'buddy-2',
+    name: 'Олена',
+    age: 26,
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Люблю сухі натуральні вина та розмови про дизайн і фото 🍷',
+    bio: 'Працюю Product UI/UX дизайнером. Люблю камерні винні бари, свічки, гарну джазову музику. Не люблю галасливі нічні клуби, зате обожнюю щирі душевні бесіди.',
+    locationName: 'Київ, Золоті Ворота',
+    distanceKm: 1.2,
+    coordinates: { lat: 50.448, lng: 30.513 },
+    preferredDrinks: ['wine', 'cocktail'],
+    paymentRule: 'each_for_themselves',
+    currentMood: 'deep_philosophy',
+    favoriteBars: ['Win Bar', "Like a Local's", 'Pure & Naive'],
+    talkTopics: ['Архітектура Києва', 'Французькі вина', 'Плівкове фото', 'Книги'],
+    online: true,
+    activeCheckIn: {
+      barName: 'Win Bar',
+      note: 'Вільне місце за високим столом. Замовляю Pinot Noir.',
+      sinceTime: '25 хв тому',
+    },
+  },
+  {
+    id: 'buddy-3',
+    name: 'Тарас',
+    age: 31,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Бар-хопінг по коктейльних барах або партія в шахи / настілки 🍸',
+    bio: 'Знаю найкращі спікізі та коктейльні карти міста. Можу розповісти історію кожного класичного твісту на Негроні чи Сауер. Шукаю напарника для інтелігентного вечора.',
+    locationName: 'Київ, Рейтарська',
+    distanceKm: 0.9,
+    coordinates: { lat: 50.452, lng: 30.511 },
+    preferredDrinks: ['cocktail', 'whiskey'],
+    paymentRule: 'rounds',
+    currentMood: 'bar_crawl',
+    favoriteBars: ['Loggerhead', 'Parovoz Speak Easy', 'Beatnik'],
+    talkTopics: ['Міксологія', 'Світова історія', 'Шахи', 'Кіно 90-х'],
+    online: false,
+  },
+  {
+    id: 'buddy-4',
+    name: 'Ярослав',
+    age: 25,
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Футбол сьогодні о 21:45 на великому екрані! Хто за компанію? ⚽',
+    bio: 'Дивлюсь Лігу Чемпіонів. Одному дивитись сумно, друзі розʼїхались. Хто хоче випити пива, покричати за красиві голи та поїсти крилець?',
+    locationName: 'Київ, Велика Васильківська',
+    distanceKm: 2.1,
+    coordinates: { lat: 50.435, lng: 30.516 },
+    preferredDrinks: ['beer', 'craft'],
+    paymentRule: 'split_50_50',
+    currentMood: 'sports_football',
+    favoriteBars: ["O'Brien's Irish Pub", 'Copper Head', 'This is Пивбар'],
+    talkTopics: ['Ліга чемпіонів', 'Спорт', 'Мандрівки', 'Автомобілі'],
+    online: true,
+  },
+  {
+    id: 'buddy-5',
+    name: 'Софія',
+    age: 27,
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Настільні ігри під безалкогольне або легкий сидр 🎲🍏',
+    bio: 'Маю з собою коробку з "Codenames" та "Exploding Kittens". Шукаю приємних людей зібратися за столиком у затишній кав’ярні-барі.',
+    locationName: 'Київ, Воздвиженка',
+    distanceKm: 1.5,
+    coordinates: { lat: 50.461, lng: 30.509 },
+    preferredDrinks: ['cider', 'non_alcoholic'],
+    paymentRule: 'each_for_themselves',
+    currentMood: 'board_games',
+    favoriteBars: ['Дріжджі Craft Pub', 'Каштан Coffee', 'Solod'],
+    talkTopics: ['Настільні ігри', 'Психологія', 'Комікси', 'Котики'],
+    online: true,
+  },
+];
+
+export const INITIAL_HANGOUTS: HangoutAlert[] = [
+  {
+    id: 'hangout-1',
+    userId: 'buddy-1',
+    userName: 'Богдан',
+    userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80',
+    barName: 'Squat 17b Yard Cafe',
+    locationArea: 'вул. Терещенківська / Поділ',
+    drinkPreference: 'Крафтовий сидр & IPA',
+    description: 'Сиджу у відкритому дворику, сонечко сідає, місце шикарне. Хто поряд — забігайте на келих!',
+    createdAt: '12 хв тому',
+    slotsAvailable: 2,
+    participantsCount: 1,
+  },
+  {
+    id: 'hangout-2',
+    userId: 'buddy-2',
+    userName: 'Олена',
+    userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop&q=80',
+    barName: 'Win Bar',
+    locationArea: 'Поділ, вул. Хорива',
+    drinkPreference: 'Біле сухе вино',
+    description: 'Вільний затишний столик, обговорюємо сучасні виставки і подорожі.',
+    createdAt: '22 хв тому',
+    slotsAvailable: 1,
+    participantsCount: 2,
+  },
+  {
+    id: 'hangout-3',
+    userId: 'buddy-4',
+    userName: 'Ярослав',
+    userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80',
+    barName: "O'Brien's Irish Pub",
+    locationArea: 'Майдан / Михайлівська',
+    drinkPreference: 'Guinness & Лагер',
+    description: 'Зайняв стіл перед екраном. Гра починається о 21:00! Чекаю компанію фанатів.',
+    createdAt: '40 хв тому',
+    slotsAvailable: 3,
+    participantsCount: 1,
+  },
+];
+
+export const INITIAL_CHATS: ChatThread[] = [
+  {
+    id: 'chat-1',
+    buddy: INITIAL_BUDDIES[0],
+    lastMessage: 'Привіт! Я якраз біля Squat 17b. Ти як щодо келиха IPA?',
+    lastMessageTime: '19:42',
+    unreadCount: 1,
+    messages: [
+      {
+        id: 'm1',
+        chatId: 'chat-1',
+        senderId: 'buddy-1',
+        senderName: 'Богдан',
+        text: 'Привіт! Побачив у профілі, що ти теж у мобільній розробці на React Native 🚀',
+        timestamp: '19:38',
+        isMe: false,
+      },
+      {
+        id: 'm2',
+        chatId: 'chat-1',
+        senderId: 'me',
+        senderName: 'Я',
+        text: 'Привіт! Так, саме розгортаю новий проект на Expo та MongoDB))',
+        timestamp: '19:40',
+        isMe: true,
+      },
+      {
+        id: 'm3',
+        chatId: 'chat-1',
+        senderId: 'buddy-1',
+        senderName: 'Богдан',
+        text: 'Круто! Я якраз біля Squat 17b. Ти як щодо келиха IPA?',
+        timestamp: '19:42',
+        isMe: false,
+        type: 'location_proposal',
+        proposalData: {
+          barName: 'Squat 17b Yard Cafe',
+          address: 'Київ, вул. Терещенківська, 17б',
+          time: 'Сьогодні, 20:15',
+          status: 'pending',
+        },
+      },
+    ],
+  },
+  {
+    id: 'chat-2',
+    buddy: INITIAL_BUDDIES[1],
+    lastMessage: 'Дзинь! 🥂 Будьмо за гарний вечір!',
+    lastMessageTime: 'Вчора',
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'm2-1',
+        chatId: 'chat-2',
+        senderId: 'buddy-2',
+        senderName: 'Олена',
+        text: 'Привіт! Бачу, ти теж любиш тихі винні заклади на Подолі',
+        timestamp: 'Вчора 20:10',
+        isMe: false,
+      },
+      {
+        id: 'm2-2',
+        chatId: 'chat-2',
+        senderId: 'me',
+        senderName: 'Я',
+        text: 'Так, Win Bar один з найулюбленіших, там чудова атмосфера',
+        timestamp: 'Вчора 20:12',
+        isMe: true,
+      },
+      {
+        id: 'm2-3',
+        chatId: 'chat-2',
+        senderId: 'buddy-2',
+        senderName: 'Олена',
+        text: 'Дзинь! 🥂 Будьмо за гарний вечір!',
+        timestamp: 'Вчора 20:15',
+        isMe: false,
+        type: 'cheers',
+      },
+    ],
+  },
+];
+
+export { 
+  TOASTS_PRESETS, 
+  ALL_TOASTS, 
+  TOAST_CATEGORIES, 
+  getRandomToast 
+} from './toastsData';
+export type { ToastItem, ToastCategoryMeta } from './toastsData';

@@ -1,0 +1,6 @@
+{
+  "name": "Будьмо! - Пошук собутильника",
+  "description": "Мобільний додаток на React Native + Expo з CI/CD для Apple App Store та Google Play, MongoDB, Firebase Auth, чатом у реальному часі, авто-визначенням мови та гео-блокуванням РФ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
