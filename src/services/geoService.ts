@@ -59,6 +59,38 @@ export const PRESET_LOCATIONS: PresetLocation[] = [
     lng: 30.5095,
     popularBars: 'Дріжджі Craft Pub, Solod, Кавʼярні',
   },
+  {
+    id: 'arsenalna',
+    name: 'Арсенальна (Kyiv Food Market)',
+    area: 'Київ, Печерський р-н',
+    lat: 50.4435,
+    lng: 30.5480,
+    popularBars: 'Kyiv Food Market, В ребро, Пʼяна Вишня',
+  },
+  {
+    id: 'obolon',
+    name: 'Оболонь (Оболонська Набережна)',
+    area: 'Київ, Оболонський р-н',
+    lat: 50.5015,
+    lng: 30.5210,
+    popularBars: 'Craft Beer House, Портер, Набережна',
+  },
+  {
+    id: 'lviv_center',
+    name: 'Львів (пл. Ринок / Вірменська)',
+    area: 'Львів, Галицький р-н',
+    lat: 49.8419,
+    lng: 24.0315,
+    popularBars: 'Пʼяна Вишня, Правда Beer Theatre, Човен',
+  },
+  {
+    id: 'odesa_deribasivska',
+    name: 'Одеса (Дерибасівська)',
+    area: 'Одеса, Приморський р-н',
+    lat: 46.4846,
+    lng: 30.7380,
+    popularBars: 'The Fitz, Тюлька, Cooper',
+  },
 ];
 
 export const INITIAL_USER_LOCATION: UserGeoLocation = {

@@ -313,6 +313,8 @@ export default function App() {
             onLanguageChange={handleLanguageChange}
             langSourceHint={langSourceHint}
             onTriggerRuBlockTest={handleTriggerRuBlockTest}
+            userLocation={userLocation}
+            onUpdateLocation={handleUpdateLocation}
           />
         )}
       </div>
