@@ -6,21 +6,16 @@ import {
   MapPin, 
   Info, 
   SlidersHorizontal, 
-  Flame, 
-  RotateCcw,
-  Sparkles,
   Check,
   MessageSquare,
   Search,
-  CheckCircle2,
-  Compass,
   Rows3,
   LayoutGrid,
   Layers,
   TrendingUp
 } from 'lucide-react';
 import { BuddyProfile, DrinkType, FilterSettings, MoodType } from '../../types';
-import { DRINK_METADATA, MOOD_METADATA, PAYMENT_METADATA, POPULAR_INTERESTS, InterestCategory } from '../../data/mockData';
+import { DRINK_METADATA, MOOD_METADATA, PAYMENT_METADATA, POPULAR_INTERESTS } from '../../data/mockData';
 import { sounds } from '../../services/soundService';
 import { formatDistance } from '../../services/geoService';
 import { ActivityAnalyticsModal } from './ActivityAnalyticsModal';

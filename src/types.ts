@@ -98,7 +98,7 @@ export interface FilterSettings {
   searchQuery?: string;
 }
 
-export type ActiveTab = 'discover' | 'radar' | 'hangouts' | 'chats' | 'profile';
+export type ActiveTab = 'discover' | 'map' | 'radar' | 'hangouts' | 'chats' | 'profile';
 
 export type DeviceMode = 'iphone' | 'android' | 'fluid';
 

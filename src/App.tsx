@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ActiveTab, BuddyProfile, ChatThread, DeviceMode, HangoutAlert, Message, AuthUser, AppLanguage, GeoBlockInfo } from './types';
 import { INITIAL_BUDDIES, INITIAL_CHATS, INITIAL_HANGOUTS } from './data/mockData';
 import { MobileFrame } from './components/mobile/MobileFrame';
 import { BottomTabBar } from './components/mobile/BottomTabBar';
 import { DiscoverView } from './components/mobile/DiscoverView';
-import { RadarView } from './components/mobile/RadarView';
+import { MapView } from './components/mobile/MapView';
 import { HangoutsView } from './components/mobile/HangoutsView';
 import { ChatListView } from './components/mobile/ChatListView';
 import { ChatRoomView } from './components/mobile/ChatRoomView';
@@ -264,8 +264,8 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'radar' && (
-          <RadarView
+        {(activeTab === 'map' || activeTab === 'radar') && (
+          <MapView
             buddies={buddies}
             userLocation={userLocation}
             onUpdateLocation={handleUpdateLocation}

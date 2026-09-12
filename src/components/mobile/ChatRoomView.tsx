@@ -6,9 +6,7 @@ import {
   MapPin, 
   Check, 
   Sparkles, 
-  Clock, 
-  X,
-  Smile
+  X
 } from 'lucide-react';
 import { ChatThread, Message } from '../../types';
 import { sounds } from '../../services/soundService';

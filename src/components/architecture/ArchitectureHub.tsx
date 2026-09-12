@@ -9,14 +9,13 @@ import {
   Check, 
   X, 
   Play, 
-  ExternalLink,
-  ChevronRight,
   Terminal,
   Rocket,
   Smartphone,
   CheckCircle2,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  TestTube
 } from 'lucide-react';
 import { sounds } from '../../services/soundService';
 
@@ -26,11 +25,14 @@ interface ArchitectureHubProps {
 }
 
 export const ArchitectureHub: React.FC<ArchitectureHubProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'expo_app' | 'cicd_stores' | 'mongo_schemas' | 'backend_socket' | 'firebase_auth' | 'mongo_runner'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'expo_app' | 'cicd_stores' | 'mongo_schemas' | 'backend_socket' | 'firebase_auth' | 'mongo_runner' | 'tests_lint'>('overview');
   const [cicdSubTab, setCicdSubTab] = useState<'github_action' | 'eas_json' | 'fastlane' | 'app_json' | 'secrets'>('github_action');
   const [isSimulatingCi, setIsSimulatingCi] = useState(false);
   const [ciLogs, setCiLogs] = useState<string[]>([]);
   const [ciStatus, setCiStatus] = useState<'idle' | 'running' | 'success'>('idle');
+  const [isRunningAppTests, setIsRunningAppTests] = useState(false);
+  const [testLogs, setTestLogs] = useState<string[]>([]);
+  const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success'>('idle');
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [queryDistance, setQueryDistance] = useState(2000);
   const [queryDrink, setQueryDrink] = useState('craft');
@@ -55,7 +57,8 @@ export const ArchitectureHub: React.FC<ArchitectureHubProps> = ({ isOpen, onClos
     const steps = [
       '🚀 [GitHub Actions] Подія: git push origin v1.0.0 (Release Tag виявлено)',
       '📦 [Runner] Ініціалізація віртуальної машини ubuntu-latest (Node.js 20, Java 17, EAS CLI v12)',
-      '🔍 [Job: Validate] Запуск npm run lint та tsc --noEmit: помилок не виявлено (0 errors)',
+      '🔍 [Job: Validate] Запуск ESLint & TypeScript (npm run lint): 0 errors, 0 warnings ✨',
+      '🧪 [Job: Validate] Запуск Vitest Unit Tests (npm test): 4 suites, 32 tests passed (100% Green) ✅',
       '🍏 [Job: iOS] Запуск EAS Build для платформи iOS (Profile: production, Bundle: com.budmo.app)...',
       '🔐 [Job: iOS] Підписання сертифікатами Apple Distribution через App Store Connect API Key',
       '☁️ [Job: iOS] Збірка IPA архіву завершена успішно. Авто-відправка в Apple TestFlight & App Store Connect!',
@@ -74,6 +77,35 @@ export const ArchitectureHub: React.FC<ArchitectureHubProps> = ({ isOpen, onClos
           sounds.playMatchCheer();
         }
       }, (index + 1) * 600);
+    });
+  };
+
+  const handleRunVitestSuite = () => {
+    setIsRunningAppTests(true);
+    setTestStatus('running');
+    setTestLogs([]);
+    sounds.playMessageSent();
+
+    const testSteps = [
+      '⚡ [Vitest v5.0.0] Ініціалізація тестового середовища та завантаження конфігурації vitest.config.ts...',
+      '🔍 [ESLint Flat Config v10] Перевірка кодової бази `src/` (typescript-eslint): 0 помилок, 0 попереджень ✨',
+      '🏷️ [TypeScript Compiler] `tsc --noEmit`: сувора типізація пройдена успішно (Strict mode OK)',
+      '🧭 [Test Suite 1/4] `src/services/geoService.test.ts` (8 тестів): формули Haversine, азимут, кроки пішки, пресети Подолу... PASSED (12ms)',
+      '🌐 [Test Suite 2/4] `src/services/i18nService.test.ts` (12 тестів): переклади UK/EN/PL/DE, геоблокування РФ за координатами та таймзонами... PASSED (32ms)',
+      '🔐 [Test Suite 3/4] `src/services/authService.test.ts` (5 тестів): Google OAuth провайдер, сесії, вихід у гостьовий режим... PASSED (602ms)',
+      '🍺 [Test Suite 4/4] `src/data/mockData.test.ts` (7 тестів): валідація бази собутильників, кличів та колекції українських тостів... PASSED (14ms)',
+      '🎉 [Vitest Summary] 4 Test Files passed (4/4) | 32 Tests passed (32/32) | 100% Green in 1.7s 🍻'
+    ];
+
+    testSteps.forEach((log, index) => {
+      setTimeout(() => {
+        setTestLogs((prev) => [...prev, log]);
+        if (index === testSteps.length - 1) {
+          setIsRunningAppTests(false);
+          setTestStatus('success');
+          sounds.playClink();
+        }
+      }, (index + 1) * 450);
     });
   };
 
@@ -401,6 +433,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run lint
+      - run: npm test
 
   # iOS Build -> Apple TestFlight & App Store
   build-ios:
@@ -667,6 +700,20 @@ end`,
           >
             <Play className="w-3.5 h-3.5" />
             <span>Тестер MongoDB гео-запиту ($nearSphere)</span>
+          </button>
+
+          <button
+            type="button"
+            id="tab-btn-tests-lint"
+            onClick={() => setActiveTab('tests_lint')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+              activeTab === 'tests_lint'
+                ? 'bg-emerald-500 text-neutral-950 shadow'
+                : 'text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <TestTube className="w-3.5 h-3.5" />
+            <span>Тести та Лінтери (Vitest + ESLint)</span>
           </button>
         </div>
 
@@ -1216,6 +1263,170 @@ end`,
                   </pre>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'tests_lint' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {/* Header metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <TestTube className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-neutral-400">Vitest Test Suites</div>
+                    <div className="text-lg font-bold text-white">4 / 4 файли (32 тести)</div>
+                    <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> {testStatus === 'running' ? 'Виконання тестів...' : '100% успішно пройдено'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-neutral-400">ESLint Flat Config v10</div>
+                    <div className="text-lg font-bold text-white">0 Warnings / 0 Errors</div>
+                    <div className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                      <Check className="w-3 h-3" /> typescript-eslint strict
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                    <Code2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-neutral-400">TypeScript Typecheck</div>
+                    <div className="text-lg font-bold text-white">tsc --noEmit</div>
+                    <div className="text-[11px] text-sky-400 font-semibold flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Без конфліктів типів
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Runner */}
+              <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Terminal className="w-4 h-4 text-emerald-400" />
+                      Інтерактивний симулятор Vitest & ESLint CI Pipeline
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      Натисніть кнопку нижче для емуляції повного циклу верифікації коду
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRunVitestSuite}
+                    disabled={isRunningAppTests}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+                  >
+                    <Play className="w-4 h-4 fill-neutral-950" />
+                    <span>{isRunningAppTests ? 'Виконання тестів...' : 'Запустити всі тести (npm test)'}</span>
+                  </button>
+                </div>
+
+                {/* Console Log Window */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 font-mono text-xs space-y-1.5 min-h-[160px] max-h-60 overflow-y-auto">
+                  {testLogs.length === 0 ? (
+                    <div className="text-neutral-500 italic">
+                      Готово до запуску. Натисніть «Запустити всі тести», щоб побачити протокол Vitest + ESLint...
+                    </div>
+                  ) : (
+                    testLogs.map((log, idx) => (
+                      <div
+                        key={idx}
+                        className={`${
+                          log.includes('PASSED') || log.includes('100% Green')
+                            ? 'text-emerald-400'
+                            : log.includes('Vitest')
+                            ? 'text-amber-400 font-bold'
+                            : 'text-neutral-300'
+                        }`}
+                      >
+                        {log}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Suite Breakdown */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                  Покриття тестовими модулями
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-amber-400 font-semibold">src/services/geoService.test.ts</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono">8 тестів</span>
+                    </div>
+                    <p className="text-neutral-400 text-[11px]">
+                      Тестування формули Haversine для Києва/Львова, розрахунок азимуту за компасом, генерація кроків пішохода та пресети барів Подолу.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-amber-400 font-semibold">src/services/i18nService.test.ts</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono">12 тестів</span>
+                    </div>
+                    <p className="text-neutral-400 text-[11px]">
+                      Мультимовність (UK, EN, PL, DE), заборона мови окупанта, перевірка геоблокування території РФ за координатами та таймзонами.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-amber-400 font-semibold">src/services/authService.test.ts</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono">5 тестів</span>
+                    </div>
+                    <p className="text-neutral-400 text-[11px]">
+                      Google OAuth провайдер, збереження сесії, логаут у гостьовий режим, захист конфіденційних токенів.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-amber-400 font-semibold">src/data/mockData.test.ts</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono">7 тестів</span>
+                    </div>
+                    <p className="text-neutral-400 text-[11px]">
+                      Цілісність структури профілів, валідність координат [lat, lng], формати повідомлень та база українських тостів.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terminal commands helper */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div>
+                  <span className="text-neutral-300 font-bold">Команди для локального запуску розробником:</span>
+                  <div className="font-mono text-neutral-400 text-[11px] mt-1 space-x-3">
+                    <span className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">npm test</span>
+                    <span className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">npm run lint</span>
+                    <span className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">npm run lint:fix</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy('npm test && npm run lint', 'cli_commands')}
+                  className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg font-mono text-xs flex items-center gap-1.5 transition"
+                >
+                  {copiedFile === 'cli_commands' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedFile === 'cli_commands' ? 'Скопійовано!' : 'Копіювати'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

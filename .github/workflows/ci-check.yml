@@ -23,8 +23,11 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm ci
 
-      - name: 🔍 TypeScript & Lint
+      - name: 🔍 ESLint & TypeScript Check
         run: npm run lint
+
+      - name: 🧪 Run Unit Test Suite (Vitest)
+        run: npm test
 
       - name: 🏗️ Production Build Check
         run: npm run build

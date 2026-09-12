@@ -3,17 +3,10 @@ import {
   Beer, 
   X, 
   Search, 
-  Sparkles, 
   Dices, 
   Copy, 
   Check, 
-  Send, 
-  Flame,
-  Wine,
-  Laptop,
-  ShieldAlert,
-  Compass,
-  Smile
+  Send
 } from 'lucide-react';
 import { 
   ALL_TOASTS, 

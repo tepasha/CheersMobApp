@@ -238,6 +238,7 @@ export function getSimulateRuBlock(): boolean {
 export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
   uk: {
     tab_discover: 'Пошук',
+    tab_map: 'Мапа',
     tab_radar: 'Радар',
     tab_hangouts: 'Кличі',
     tab_chats: 'Чати',
@@ -268,6 +269,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
   },
   en: {
     tab_discover: 'Discover',
+    tab_map: 'Map',
     tab_radar: 'Radar',
     tab_hangouts: 'Hangouts',
     tab_chats: 'Chats',
@@ -298,6 +300,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
   },
   pl: {
     tab_discover: 'Odkrywaj',
+    tab_map: 'Mapa',
     tab_radar: 'Radar',
     tab_hangouts: 'Spotkania',
     tab_chats: 'Czaty',
@@ -328,6 +331,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
   },
   de: {
     tab_discover: 'Entdecken',
+    tab_map: 'Karte',
     tab_radar: 'Radar',
     tab_hangouts: 'Treffen',
     tab_chats: 'Chats',

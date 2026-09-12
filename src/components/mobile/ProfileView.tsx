@@ -1,27 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  User, 
   Beer, 
   MapPin, 
   ShieldCheck, 
   LogOut, 
-  Edit3, 
   Save, 
-  Flame, 
   Check, 
-  ExternalLink, 
   Globe, 
   Ban, 
   ShieldAlert,
   Navigation,
   Locate,
   Footprints,
-  RefreshCw,
   CheckCircle2,
-  Compass,
-  Search,
-  Crosshair,
-  Sparkles
+  Search
 } from 'lucide-react';
 import { DrinkType, PaymentEtiquette, AuthUser, AppLanguage } from '../../types';
 import { DRINK_METADATA, PAYMENT_METADATA } from '../../data/mockData';
@@ -33,6 +25,7 @@ import {
   PresetLocation, 
   simulateWalkingStep 
 } from '../../services/geoService';
+import { GeoCoordinateMapPicker } from './GeoCoordinateMapPicker';
 
 interface ProfileViewProps {
   currentUser: AuthUser;
@@ -70,14 +63,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [isLocatingGps, setIsLocatingGps] = useState(false);
   const [locationTab, setLocationTab] = useState<'presets' | 'custom'>('presets');
   const [searchDistrict, setSearchDistrict] = useState('');
-  const [customPlaceName, setCustomPlaceName] = useState('');
-  const [customLat, setCustomLat] = useState(userLocation.lat.toString());
-  const [customLng, setCustomLng] = useState(userLocation.lng.toString());
-
-  useEffect(() => {
-    setCustomLat(userLocation.lat.toString());
-    setCustomLng(userLocation.lng.toString());
-  }, [userLocation.lat, userLocation.lng]);
 
   const toggleDrink = (drink: DrinkType) => {
     setPreferredDrinks((prev) =>
@@ -132,7 +117,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setGeoNotification(`🛰️ Геолокацію визначено за GPS (точність ±${Math.round(accuracy || 8)}м)!`);
         setTimeout(() => setGeoNotification(null), 4000);
       },
-      (err) => {
+      (_err) => {
         setIsLocatingGps(false);
         setGeoNotification('Не вдалося отримати GPS або доступ відхилено. Будь ласка, оберіть готовий район нижче.');
         setTimeout(() => setGeoNotification(null), 4000);
@@ -172,32 +157,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     sounds.playSwoosh();
     setGeoNotification('🚶‍♂️ Крок пішки (+90м) пройдено! Радар та компас оновлено.');
     setTimeout(() => setGeoNotification(null), 3000);
-  };
-
-  // 4. Apply custom coordinates
-  const handleApplyCustomCoords = (e: React.FormEvent) => {
-    e.preventDefault();
-    const latNum = parseFloat(customLat);
-    const lngNum = parseFloat(customLng);
-    if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
-      setGeoNotification('Введіть коректні координати: широта від -90 до 90, довгота від -180 до 180');
-      setTimeout(() => setGeoNotification(null), 4000);
-      return;
-    }
-    const name = customPlaceName.trim() || `Користувацька точка (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})`;
-    const newLoc: UserGeoLocation = {
-      lat: Math.round(latNum * 10000) / 10000,
-      lng: Math.round(lngNum * 10000) / 10000,
-      locationName: name,
-      accuracyMeters: 10,
-      lastUpdated: 'Щойно',
-      isSimulated: true,
-      status: 'active',
-    };
-    onUpdateLocation(newLoc);
-    sounds.playClink();
-    setGeoNotification(`📍 Власну локацію встановлено: ${name}!`);
-    setTimeout(() => setGeoNotification(null), 3500);
   };
 
   // Filter preset locations by search
@@ -378,14 +337,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <button
               type="button"
               id="profile-location-tab-custom"
-              onClick={() => setLocationTab('custom')}
-              className={`py-1.5 rounded-lg transition text-center ${
+              onClick={() => {
+                setLocationTab('custom');
+                sounds.playTap();
+              }}
+              className={`py-1.5 rounded-lg transition text-center flex items-center justify-center gap-1.5 ${
                 locationTab === 'custom'
                   ? 'bg-amber-500 text-neutral-950 shadow-sm'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              Власні координати
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Мапа координат</span>
             </button>
           </div>
 
@@ -465,88 +428,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           )}
 
-          {/* Tab 2: Custom Coordinates & Cities */}
+          {/* Tab 2: Interactive Coordinate Map Picker */}
           {locationTab === 'custom' && (
-            <form onSubmit={handleApplyCustomCoords} className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-neutral-300">
-                  Назва локації / району
-                </label>
-                <input
-                  type="text"
-                  id="custom-loc-name-input"
-                  placeholder="напр. Київ, Оболонська набережна або Львів, пл. Ринок"
-                  value={customPlaceName}
-                  onChange={(e) => setCustomPlaceName(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-neutral-300">
-                    Широта (Lat)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    id="custom-loc-lat-input"
-                    value={customLat}
-                    onChange={(e) => setCustomLat(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-neutral-300">
-                    Довгота (Lng)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    id="custom-loc-lng-input"
-                    value={customLng}
-                    onChange={(e) => setCustomLng(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
-
-              {/* Quick City Presets */}
-              <div className="space-y-1">
-                <div className="text-[10px] text-neutral-400">Швидкі пресети міст:</div>
-                <div className="flex flex-wrap gap-1">
-                  {[
-                    { name: 'Київ (Центр)', lat: '50.4501', lng: '30.5234' },
-                    { name: 'Львів (Ратуша)', lat: '49.8419', lng: '24.0315' },
-                    { name: 'Одеса (Дерибасівська)', lat: '46.4846', lng: '30.7380' },
-                    { name: 'Дніпро (Набережна)', lat: '48.4647', lng: '35.0462' },
-                    { name: 'Харків (Свободи)', lat: '50.0050', lng: '36.2280' },
-                  ].map((city) => (
-                    <button
-                      key={city.name}
-                      type="button"
-                      onClick={() => {
-                        setCustomPlaceName(city.name);
-                        setCustomLat(city.lat);
-                        setCustomLng(city.lng);
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-amber-500/50 text-neutral-300 text-[10px] font-medium transition"
-                    >
-                      {city.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                id="apply-custom-loc-btn"
-                className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs shadow-md transition active:scale-98"
-              >
-                Застосувати координати
-              </button>
-            </form>
+            <GeoCoordinateMapPicker
+              initialLat={userLocation.lat}
+              initialLng={userLocation.lng}
+              initialName={userLocation.locationName}
+              onApplyCoordinates={(lat, lng, placeName) => {
+                const newLoc: UserGeoLocation = {
+                  lat,
+                  lng,
+                  locationName: placeName,
+                  accuracyMeters: 8,
+                  lastUpdated: 'Щойно',
+                  isSimulated: true,
+                  status: 'active',
+                };
+                onUpdateLocation(newLoc);
+                sounds.playClink();
+                setGeoNotification(`📍 Локацію на мапі встановлено: ${placeName}!`);
+                setTimeout(() => setGeoNotification(null), 3500);
+              }}
+            />
           )}
         </div>
 

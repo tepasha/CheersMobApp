@@ -53,8 +53,11 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm ci
 
-      - name: 🧪 Run Linter & Typecheck
+      - name: 🔍 ESLint & TypeScript Check
         run: npm run lint
+
+      - name: 🧪 Run Unit Test Suite (Vitest)
+        run: npm test
 
   # ==========================================
   # iOS Build & App Store Connect / TestFlight

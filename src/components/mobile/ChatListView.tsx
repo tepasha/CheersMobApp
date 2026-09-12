@@ -1,6 +1,6 @@
 import React from 'react';
-import { MessageCircle, Beer, ChevronRight, Sparkles } from 'lucide-react';
-import { BuddyProfile, ChatThread } from '../../types';
+import { Beer, ChevronRight } from 'lucide-react';
+import { ChatThread } from '../../types';
 
 interface ChatListViewProps {
   chats: ChatThread[];

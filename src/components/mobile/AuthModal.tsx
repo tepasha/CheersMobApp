@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, CheckCircle2, ShieldCheck, Check, Sparkles, User, LogOut } from 'lucide-react';
+import { X, Lock, Mail, ShieldCheck, Check, User, LogOut } from 'lucide-react';
 import { sounds } from '../../services/soundService';
 import { authService, KNOWN_GOOGLE_ACCOUNTS } from '../../services/authService';
 import { AuthUser } from '../../types';

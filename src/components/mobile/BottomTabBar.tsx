@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, MessageCircle, Radio, User, Wine } from 'lucide-react';
+import { Compass, MessageCircle, Map, User, Wine } from 'lucide-react';
 import { ActiveTab, AppLanguage } from '../../types';
 import { t } from '../../services/i18nService';
 
@@ -25,9 +25,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
       icon: <Compass className="w-5 h-5" />,
     },
     {
-      id: 'radar',
-      label: t('tab_radar', currentLanguage),
-      icon: <Radio className="w-5 h-5" />,
+      id: 'map',
+      label: t('tab_map', currentLanguage),
+      icon: <Map className="w-5 h-5" />,
     },
     {
       id: 'hangouts',
@@ -55,7 +55,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
       className="bg-neutral-900/95 backdrop-blur-md border-t border-neutral-800/80 px-2 py-2 flex items-center justify-around z-30 select-none safe-bottom"
     >
       {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
+        const isActive = activeTab === tab.id || (tab.id === 'map' && activeTab === 'radar');
         return (
           <button
             key={tab.id}

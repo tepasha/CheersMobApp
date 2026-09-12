@@ -7,11 +7,7 @@ import {
   Zap,
   TrendingUp,
   Sparkles,
-  Users,
   Beer,
-  Wine,
-  HelpCircle,
-  Compass,
   ArrowRight
 } from 'lucide-react';
 import {
