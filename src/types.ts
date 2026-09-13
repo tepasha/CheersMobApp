@@ -58,6 +58,10 @@ export interface Message {
   timestamp: string;
   isMe: boolean;
   type?: 'text' | 'cheers' | 'location_proposal';
+  isEncrypted?: boolean;
+  cipherPayload?: string;
+  isFromCache?: boolean;
+  hasPendingWrites?: boolean;
   proposalData?: {
     barName: string;
     address: string;
@@ -87,6 +91,13 @@ export interface HangoutAlert {
   createdAt: string;
   slotsAvailable: number;
   participantsCount: number;
+  lat?: number;
+  lng?: number;
+  distanceKm?: number;
+  distanceFormatted?: string;
+  isLive?: boolean;
+  status?: 'active' | 'closed';
+  joinedUsers?: string[];
 }
 
 export interface FilterSettings {
@@ -131,4 +142,15 @@ export interface AuthUser {
   accessToken?: string;
   joinedAt?: string;
   emailVerified?: boolean;
+}
+
+export interface FavoriteVenueItem {
+  id: string;
+  name: string;
+  area: string;
+  category: string;
+  lat: number;
+  lng: number;
+  comment?: string;
+  createdAt?: string;
 }

@@ -343,7 +343,7 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   // Select city
-  const handleSelectCity = (city: CityCenter) => {
+  const _handleSelectCity = (city: CityCenter) => {
     sounds.playTap();
     setActiveCityId(city.id);
     setMapCenter({ lat: city.lat, lng: city.lng });

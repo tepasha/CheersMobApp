@@ -213,11 +213,16 @@ export const RadarView: React.FC<RadarViewProps> = ({
       createdAt: 'Щойно',
       slotsAvailable: 2,
       participantsCount: 1,
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      isLive: true,
+      status: 'active',
+      joinedUsers: ['me'],
     };
 
     onNewHangout(newAlert);
     setShowCheckInModal(false);
-    triggerNotification(`🍻 Чек-ін у "${customBar}" додано на радар!`);
+    triggerNotification(`📡 Живий чек-ін у "${customBar}" додано на радар та транслюється всім поблизу!`);
   };
 
   // Helper for walking time

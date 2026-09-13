@@ -9,39 +9,46 @@ import {
   MessageSquare,
   X,
   Sparkles,
-  Flame,
-  Send,
   CheckCircle2,
   Copy,
   Dices,
   ScrollText,
   TrendingUp,
   ChevronRight,
+  Radio,
+  Navigation,
+  Trash2,
+  LocateFixed,
 } from 'lucide-react';
 import { BuddyProfile, HangoutAlert } from '../../types';
 import { sounds } from '../../services/soundService';
 import { ALL_TOASTS, getRandomToast, ToastItem } from '../../data/toastsData';
 import { ToastModal } from './ToastModal';
 import { ActivityAnalyticsModal } from './ActivityAnalyticsModal';
+import { UserGeoLocation } from '../../services/geoService';
 
 interface HangoutsViewProps {
   hangouts: HangoutAlert[];
   onJoinHangout: (hangoutId: string) => void;
+  onCloseHangout?: (hangoutId: string) => void;
   onOpenBuddyChat: (buddyName: string) => void;
   buddies: BuddyProfile[];
   onNewHangout: (hangout: HangoutAlert) => void;
+  currentUserId?: string;
   currentUserName?: string;
+  currentUserAvatar?: string;
   currentLocationName?: string;
+  userLocation?: UserGeoLocation;
 }
 
 const POPULAR_BAR_PRESETS = [
-  { bar: 'Squat 17b', area: 'Поділ' },
-  { bar: 'Win Bar', area: 'Поділ' },
-  { bar: 'Loggerhead', area: 'Рейтарська' },
-  { bar: 'Punkcraft', area: 'Поділ' },
-  { bar: 'Varvar Bar', area: 'Поділ' },
-  { bar: 'This is Пивбар', area: 'В. Васильківська' },
-  { bar: 'Pure & Naive', area: 'Золоті Ворота' },
+  { bar: 'Squat 17b', area: 'Поділ, вул. Терещенківська', lat: 50.4415, lng: 30.514 },
+  { bar: 'Win Bar', area: 'Поділ, вул. Хорива', lat: 50.467, lng: 30.5145 },
+  { bar: 'Loggerhead', area: 'Шевченківський, б-р Шевченка', lat: 50.4428, lng: 30.5165 },
+  { bar: 'Punkcraft', area: 'Поділ, вул. Ігорівська', lat: 50.4608, lng: 30.5218 },
+  { bar: 'Varvar Bar', area: 'Поділ, вул. Верхній Вал', lat: 50.4665, lng: 30.512 },
+  { bar: 'This is Пивбар', area: 'В. Васильківська / Бессарабка', lat: 50.4385, lng: 30.5195 },
+  { bar: 'Pure & Naive', area: 'Золоті Ворота, вул. Франка', lat: 50.449, lng: 30.51 },
 ];
 
 const QUICK_TEMPLATES = [
@@ -55,11 +62,15 @@ const QUICK_TEMPLATES = [
 export const HangoutsView: React.FC<HangoutsViewProps> = ({
   hangouts,
   onJoinHangout,
+  onCloseHangout,
   onOpenBuddyChat,
   buddies: _buddies,
   onNewHangout,
+  currentUserId = 'me',
   currentUserName = 'Павло',
+  currentUserAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
   currentLocationName = 'Київ, Поділ',
+  userLocation,
 }) => {
   const [joinedHangouts, setJoinedHangouts] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,6 +80,9 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
   const [copiedToast, setCopiedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Filter mode: 'all' | 'live' | 'nearby'
+  const [filterMode, setFilterMode] = useState<'all' | 'live' | 'nearby'>('all');
+
   // Form states for new Hangout
   const [barName, setBarName] = useState('Squat 17b');
   const [locationArea, setLocationArea] = useState(currentLocationName);
@@ -77,6 +91,8 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
     'Сиджу у відкритому дворику, замовляю сидр. Шукаю 1-2 людей приєднатися до столика!'
   );
   const [slotsAvailable, setSlotsAvailable] = useState<number>(2);
+  const [customLat, setCustomLat] = useState<number | undefined>(50.4415);
+  const [customLng, setCustomLng] = useState<number | undefined>(30.514);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -107,30 +123,64 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
     }
   };
 
+  const handleClose = (id: string, bar: string) => {
+    sounds.playTap();
+    if (onCloseHangout) {
+      onCloseHangout(id);
+      showToast(`🛑 Чек-ін у "${bar}" закрито та знято з трансляції`);
+    }
+  };
+
   const handleCreateHangout = (e: React.FormEvent) => {
     e.preventDefault();
     if (!barName.trim() || !description.trim()) return;
 
     sounds.playClink();
+
+    // Prefer coordinates from chosen bar preset or current user location
+    const finalLat = typeof customLat === 'number' ? customLat : userLocation?.lat ?? 50.467;
+    const finalLng = typeof customLng === 'number' ? customLng : userLocation?.lng ?? 30.514;
+
     const newAlert: HangoutAlert = {
       id: `hangout-${Date.now()}`,
-      userId: 'me',
+      userId: currentUserId,
       userName: `Ви (${currentUserName})`,
-      userAvatar:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+      userAvatar: currentUserAvatar,
       barName: barName.trim(),
-      locationArea: locationArea.trim() || 'Київ, Центр',
+      locationArea: locationArea.trim() || currentLocationName || 'Київ, Центр',
       drinkPreference: drinkPreference.trim() || 'Келих за настроєм',
       description: description.trim(),
       createdAt: 'Щойно',
       slotsAvailable: slotsAvailable,
       participantsCount: 1,
+      lat: finalLat,
+      lng: finalLng,
+      isLive: true,
+      status: 'active',
+      joinedUsers: [currentUserId],
     };
 
     onNewHangout(newAlert);
     setShowCreateModal(false);
-    showToast(`📢 Ваш клич у "${barName}" опубліковано!`);
+    showToast(`📡 Живий чек-ін у "${barName}" активовано та транслюється поблизу!`);
   };
+
+  // Filtered hangouts computation
+  const liveCount = hangouts.filter((h) => h.isLive && h.status !== 'closed').length;
+  const nearbyCount = hangouts.filter((h) => {
+    const dist = typeof h.distanceKm === 'number' ? h.distanceKm : 999;
+    return dist <= 2.5 && h.status !== 'closed';
+  }).length;
+
+  const filteredHangouts = hangouts.filter((h) => {
+    if (h.status === 'closed') return false;
+    if (filterMode === 'live') return !!h.isLive;
+    if (filterMode === 'nearby') {
+      const dist = typeof h.distanceKm === 'number' ? h.distanceKm : 999;
+      return dist <= 2.5;
+    }
+    return true;
+  });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-neutral-950 overflow-y-auto no-scrollbar select-none relative">
@@ -260,31 +310,142 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
           </div>
         </div>
 
-        {hangouts.map((h) => {
+        {/* Live Filter Tabs & Realtime Badge */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between text-[11px] px-1">
+            <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Наживо в Cloud Firestore ({liveCount} активних)</span>
+            </div>
+            {userLocation && (
+              <span className="text-[10px] text-neutral-400 flex items-center gap-1 truncate max-w-[140px]">
+                <LocateFixed className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="truncate">{userLocation.locationName.split(',')[0]}</span>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
+            <button
+              type="button"
+              id="filter-hangouts-all"
+              onClick={() => {
+                sounds.playTap();
+                setFilterMode('all');
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
+                filterMode === 'all'
+                  ? 'bg-neutral-800 text-white shadow-sm'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <span>Усі кличі</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-950/80 text-neutral-300">
+                {hangouts.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              id="filter-hangouts-live"
+              onClick={() => {
+                sounds.playTap();
+                setFilterMode('live');
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
+                filterMode === 'live'
+                  ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700/60 shadow-sm'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Наживо</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-950/80 text-emerald-300">
+                {liveCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              id="filter-hangouts-nearby"
+              onClick={() => {
+                sounds.playTap();
+                setFilterMode('nearby');
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
+                filterMode === 'nearby'
+                  ? 'bg-amber-500 text-neutral-950 shadow-sm'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Navigation className="w-3 h-3" />
+              <span>Поруч &lt;2.5км</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-950/80 text-amber-300">
+                {nearbyCount}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Empty state if filter yields 0 */}
+        {filteredHangouts.length === 0 && (
+          <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 text-center flex flex-col items-center justify-center space-y-2">
+            <Radio className="w-8 h-8 text-neutral-600 animate-pulse" />
+            <p className="text-xs font-semibold text-neutral-300">
+              {filterMode === 'nearby'
+                ? 'Поблизу вас поки немає активних кличів'
+                : 'Немає чекінів у цій категорії'}
+            </p>
+            <p className="text-[11px] text-neutral-500 max-w-xs">
+              Будьте першим — опублікуйте свій чекін у барі, щоб знайти компанію!
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="mt-2 px-3.5 py-1.5 rounded-xl bg-amber-500 text-neutral-950 text-xs font-bold flex items-center gap-1.5 shadow"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Опублікувати свій чекін</span>
+            </button>
+          </div>
+        )}
+
+        {filteredHangouts.map((h) => {
           const isJoined = joinedHangouts.includes(h.id);
-          const isMyHangout = h.userId === 'me' || h.userName.includes('Ви');
+          const isMyHangout =
+            h.userId === currentUserId ||
+            h.userId === 'me' ||
+            h.userName.includes('Ви');
+          const isCloseProximity = typeof h.distanceKm === 'number' && h.distanceKm <= 0.5;
 
           return (
             <div
               key={h.id}
-              className={`bg-neutral-900 rounded-2xl border p-3.5 shadow-md flex flex-col gap-2.5 transition ${
+              className={`bg-neutral-900 rounded-2xl border p-3.5 shadow-md flex flex-col gap-2.5 transition relative overflow-hidden ${
                 isMyHangout
-                  ? 'border-amber-500/50 bg-neutral-900/95 shadow-amber-500/5'
+                  ? 'border-amber-500/60 bg-gradient-to-br from-neutral-900 via-neutral-900 to-amber-950/30 shadow-amber-500/10'
                   : 'border-neutral-800 hover:border-neutral-700'
               }`}
             >
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
-                  <img
-                    src={h.userAvatar}
-                    alt={h.userName}
-                    className={`w-10 h-10 rounded-full object-cover border ${
-                      isMyHangout ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-amber-400/40'
-                    }`}
-                  />
+                  <div className="relative">
+                    <img
+                      src={h.userAvatar}
+                      alt={h.userName}
+                      className={`w-10 h-10 rounded-full object-cover border ${
+                        isMyHangout
+                          ? 'border-amber-400 ring-2 ring-amber-400/40'
+                          : 'border-amber-400/40'
+                      }`}
+                    />
+                    {h.isLive && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-neutral-900 animate-pulse" />
+                    )}
+                  </div>
                   <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h3 className="text-xs font-bold text-white flex items-center gap-1">
                         {h.userName}
                       </h3>
@@ -293,18 +454,39 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
                           Мій клич
                         </span>
                       )}
+                      {h.isLive && (
+                        <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          НАЖИВО В БАРІ
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                    <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1 mt-0.5">
                       <Wine className="w-3 h-3" />
                       {h.barName}
                     </span>
                   </div>
                 </div>
 
-                <span className="text-[10px] text-neutral-400 flex items-center gap-0.5">
-                  <Clock className="w-2.5 h-2.5" />
-                  {h.createdAt}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] text-neutral-400 flex items-center gap-0.5">
+                    <Clock className="w-2.5 h-2.5" />
+                    {h.createdAt}
+                  </span>
+                  {h.distanceFormatted && (
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md flex items-center gap-1 ${
+                        isCloseProximity
+                          ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/60'
+                          : 'bg-neutral-800 text-neutral-300'
+                      }`}
+                    >
+                      <Navigation className="w-2.5 h-2.5" />
+                      <span>{h.distanceFormatted}</span>
+                      {isCloseProximity && <span className="text-emerald-400 font-extrabold">• Поруч!</span>}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Description */}
@@ -313,19 +495,24 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
               </p>
 
               {/* Drink preference badge */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] text-neutral-400 bg-neutral-800/80 px-2 py-0.5 rounded-md border border-neutral-700/50">
                   Пʼють: <strong className="text-neutral-200">{h.drinkPreference}</strong>
                 </span>
+                {isCloseProximity && (
+                  <span className="text-[10px] text-emerald-300 bg-emerald-950/80 border border-emerald-800/50 px-2 py-0.5 rounded-md font-bold">
+                    ⚡ Менше 500 метрів від вас
+                  </span>
+                )}
               </div>
 
               {/* Meta Row */}
               <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-0.5">
-                <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                  <MapPin className="w-3 h-3" />
-                  {h.locationArea}
+                <span className="flex items-center gap-1 text-emerald-400 font-medium truncate max-w-[200px]">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{h.locationArea}</span>
                 </span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 shrink-0">
                   <Users className="w-3 h-3 text-neutral-400" />
                   <span>
                     Місць: {h.participantsCount + (isJoined ? 1 : 0)} /{' '}
@@ -337,9 +524,23 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
               {/* Action Button */}
               <div className="flex gap-2 pt-1">
                 {isMyHangout ? (
-                  <div className="flex-1 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Ваш клич активний для всіх собутильників</span>
+                  <div className="w-full flex items-center gap-2">
+                    <div className="flex-1 py-2 px-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate">Ваш клич активний і транслюється поруч</span>
+                    </div>
+                    {onCloseHangout && (
+                      <button
+                        type="button"
+                        id={`close-hangout-btn-${h.id}`}
+                        onClick={() => handleClose(h.id, h.barName)}
+                        className="px-3 py-2 rounded-xl bg-neutral-800 hover:bg-rose-950/80 text-neutral-400 hover:text-rose-300 border border-neutral-700 hover:border-rose-800/60 text-xs font-bold flex items-center gap-1 transition"
+                        title="Закрити чекін"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Закрити</span>
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -361,7 +562,7 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
                       ) : (
                         <>
                           <Wine className="w-3.5 h-3.5" />
-                          <span>Підсісти до столика</span>
+                          <span>Підсісти до столика ({h.slotsAvailable} вільних)</span>
                         </>
                       )}
                     </button>
@@ -407,10 +608,19 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
           <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-5 max-h-[92%] overflow-y-auto no-scrollbar shadow-2xl space-y-3.5">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-1 border-b border-neutral-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Flame className="w-4 h-4 text-amber-400" />
-                <span>Кинути клич на вечір 🍻</span>
-              </h3>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <Radio className="w-4 h-4 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white leading-none">
+                    Живий чекін у барі 🍻
+                  </h3>
+                  <p className="text-[10px] text-neutral-400 mt-0.5">
+                    Миттєва трансляція в радіусі для всіх поблизу
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 id="close-create-hangout-modal"
@@ -431,34 +641,63 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
                   type="text"
                   id="hangout-bar-input"
                   value={barName}
-                  onChange={(e) => setBarName(e.target.value)}
+                  onChange={(e) => {
+                    setBarName(e.target.value);
+                  }}
                   placeholder="напр. Squat 17b, Win Bar, Punkcraft..."
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400 text-xs"
                   required
                 />
-                {/* Quick Presets */}
+                {/* Quick Presets with coordinates */}
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {POPULAR_BAR_PRESETS.slice(0, 4).map((p) => (
-                    <button
-                      key={p.bar}
-                      type="button"
-                      onClick={() => {
-                        setBarName(p.bar);
-                        setLocationArea(`Київ, ${p.area}`);
-                      }}
-                      className="text-[10px] px-2 py-0.5 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-400 hover:text-amber-300 hover:border-neutral-700 transition"
-                    >
-                      {p.bar}
-                    </button>
-                  ))}
+                  {POPULAR_BAR_PRESETS.map((p) => {
+                    const isCurrentSelected = barName === p.bar;
+                    return (
+                      <button
+                        key={p.bar}
+                        type="button"
+                        onClick={() => {
+                          sounds.playTap();
+                          setBarName(p.bar);
+                          setLocationArea(p.area);
+                          setCustomLat(p.lat);
+                          setCustomLng(p.lng);
+                        }}
+                        className={`text-[10px] px-2 py-0.5 rounded-md border transition flex items-center gap-1 ${
+                          isCurrentSelected
+                            ? 'bg-amber-500/20 border-amber-400/60 text-amber-300 font-bold'
+                            : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-amber-300 hover:border-neutral-700'
+                        }`}
+                      >
+                        <span>{p.bar}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Location Area */}
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-300 mb-1">
-                  Район чи адреса
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-neutral-300">
+                    Район чи адреса
+                  </label>
+                  {userLocation && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playTap();
+                        setLocationArea(userLocation.locationName);
+                        setCustomLat(userLocation.lat);
+                        setCustomLng(userLocation.lng);
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <LocateFixed className="w-2.5 h-2.5" />
+                      <span>Моя позиція</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   id="hangout-area-input"
@@ -484,6 +723,18 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400 text-xs"
                   required
                 />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {['Крафтове пиво', 'Сидр & IPA', 'Сухе вино', 'Авторський коктейль', 'Наливки'].map((dp) => (
+                    <button
+                      key={dp}
+                      type="button"
+                      onClick={() => setDrinkPreference(dp)}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-neutral-400 hover:text-amber-300"
+                    >
+                      {dp}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Slots Available Counter */}
@@ -561,8 +812,8 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
                   id="submit-create-hangout-btn"
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Опублікувати клич</span>
+                  <Radio className="w-3.5 h-3.5" />
+                  <span>Транслювати наживо 📡</span>
                 </button>
               </div>
             </form>

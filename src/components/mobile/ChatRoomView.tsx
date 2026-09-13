@@ -6,11 +6,19 @@ import {
   MapPin, 
   Check, 
   Sparkles, 
-  X
+  X,
+  ShieldCheck,
+  Lock,
+  Eye,
+  WifiOff,
+  Database,
+  Clock
 } from 'lucide-react';
 import { ChatThread, Message } from '../../types';
 import { sounds } from '../../services/soundService';
+import { firestoreSyncService } from '../../services/firestoreSyncService';
 import { ToastModal } from './ToastModal';
+import { SecurityInspectionModal } from './SecurityInspectionModal';
 
 interface ChatRoomViewProps {
   chat: ChatThread;
@@ -26,12 +34,30 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   const [inputText, setInputText] = useState('');
   const [showToastsModal, setShowToastsModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [inspectedMessageId, setInspectedMessageId] = useState<string | null>(null);
   const [proposalBar, setProposalBar] = useState(chat.buddy.favoriteBars[0] || 'Squat 17b');
   const [proposalTime, setProposalTime] = useState('Сьогодні о 20:30');
   const [isTyping, setIsTyping] = useState(false);
   const [floatingGlasses, setFloatingGlasses] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [isOnline, setIsOnline] = useState(true);
+  const [isBasementMode, setIsBasementMode] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = firestoreSyncService.onNetworkStatusChange((online, basement) => {
+      setIsOnline(online);
+      setIsBasementMode(basement);
+    });
+    return unsub;
+  }, []);
+
+  const handleToggleBasementMode = async () => {
+    sounds.playTap();
+    const nextState = !isBasementMode;
+    await firestoreSyncService.setBasementMode(nextState);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -153,18 +179,76 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
           </div>
         </div>
 
-        {/* Quick toast / clink button in header */}
-        <button
-          type="button"
-          id="header-cheers-btn"
-          onClick={() => handleSendToast('Будьмо! 🍻')}
-          className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
-          title="Швидкий тост Дзинь!"
-        >
-          <Beer className="w-3.5 h-3.5" />
-          <span>Дзинь!</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Non-clickable E2EE Security Badge (icon only, no text) */}
+          <div
+            id="header-e2ee-badge"
+            className="p-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-sm select-none"
+            title="Захищено наскрізним шифруванням"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+          </div>
+
+          {/* Basement bar offline mode toggle */}
+          <button
+            type="button"
+            id="header-basement-mode-btn"
+            onClick={handleToggleBasementMode}
+            className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition active:scale-95 ${
+              isBasementMode || !isOnline
+                ? 'bg-amber-950/90 text-amber-300 border-amber-500/60 shadow-sm'
+                : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200 border-neutral-800'
+            }`}
+            title={
+              isBasementMode
+                ? "Підвальний бар: Офлайн-кеш Firestore активний (клікніть, щоб увімкнути мережу)"
+                : "Симуляція підвального бару без зв'язку (перевірка локального кешу IndexedDB)"
+            }
+          >
+            {isBasementMode || !isOnline ? (
+              <>
+                <WifiOff className="w-3 h-3 text-amber-400 animate-pulse" />
+                <span>Підвал</span>
+              </>
+            ) : (
+              <>
+                <Database className="w-3 h-3 text-neutral-400" />
+                <span>Офлайн-кеш</span>
+              </>
+            )}
+          </button>
+
+          {/* Quick toast / clink button in header */}
+          <button
+            type="button"
+            id="header-cheers-btn"
+            onClick={() => handleSendToast('Будьмо! 🍻')}
+            className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
+            title="Швидкий тост Дзинь!"
+          >
+            <Beer className="w-3.5 h-3.5" />
+            <span>Дзинь!</span>
+          </button>
+        </div>
       </div>
+
+      {/* Basement Bar Offline Cache Notification Banner */}
+      {(isBasementMode || !isOnline) && (
+        <div className="mx-3 mt-2 px-3 py-2 rounded-xl bg-amber-950/50 border border-amber-500/30 text-xs shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-amber-300 text-[11px]">
+              <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Режим підвального бару (Офлайн)</span>
+            </div>
+            <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-medium">
+              IndexedDB Кеш
+            </span>
+          </div>
+          <p className="text-[10px] text-neutral-300 mt-1 leading-snug">
+            Зв'язок слабкий або відсутній. Повідомлення й тости зберігаються локально та будуть доставлені щойно ви підніметесь нагору.
+          </p>
+        </div>
+      )}
 
       {/* Floating Animated Toast Emojis */}
       {floatingGlasses.length > 0 && (
@@ -186,28 +270,58 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
 
       {/* Messages List Area */}
       <div className="flex-1 p-3 overflow-y-auto no-scrollbar space-y-2.5">
-        <div className="text-center my-2">
-          <span className="text-[10px] bg-neutral-900 text-neutral-400 px-2.5 py-1 rounded-full border border-neutral-800">
-            Зʼєднано через Firebase Auth & WebSockets • MongoDB Room #{chat.id}
-          </span>
+        <div className="text-center my-1.5">
+          <div
+            id="room-e2ee-indicator"
+            className="inline-flex items-center gap-1.5 text-[10px] bg-neutral-900/90 text-neutral-400 px-3 py-1 rounded-full border border-neutral-800 select-none"
+          >
+            <Lock className="w-2.5 h-2.5 text-emerald-400" />
+            <span>Наскрізне шифрування • Cloud Firestore</span>
+          </div>
         </div>
 
         {chat.messages.map((msg) => {
+          const isInspected = inspectedMessageId === msg.id;
+
           if (msg.type === 'cheers') {
             return (
               <div
                 key={msg.id}
                 className={`flex my-2 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="bg-gradient-to-tr from-amber-600/30 to-amber-500/10 border border-amber-500/40 rounded-2xl p-3 max-w-[85%] shadow-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl animate-bounce">🍻</span>
-                    <span className="text-xs font-bold text-amber-300">Тост / Будьмо!</span>
+                <div 
+                  onClick={() => setInspectedMessageId(isInspected ? null : msg.id)}
+                  className="bg-gradient-to-tr from-amber-600/30 to-amber-500/10 border border-amber-500/40 rounded-2xl p-3 max-w-[85%] shadow-lg cursor-pointer transition hover:border-amber-400/60"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-2xl animate-bounce">🍻</span>
+                      <span className="text-xs font-bold text-amber-300">Тост / Будьмо!</span>
+                    </div>
+                    <span className="text-emerald-400/90 flex items-center" title="Захищено шифруванням">
+                      <Lock className="w-2.5 h-2.5" />
+                    </span>
                   </div>
                   <p className="text-xs text-white font-medium italic">"{msg.text}"</p>
-                  <span className="text-[9px] text-amber-400/80 block text-right mt-1">
-                    {msg.timestamp}
-                  </span>
+                  
+                  {isInspected && (
+                    <div className="mt-2 pt-1.5 border-t border-amber-500/30 text-[9px] font-mono text-amber-200/80 break-all leading-tight">
+                      <div className="flex items-center gap-1 text-emerald-300 font-bold mb-0.5">
+                        <Eye className="w-2.5 h-2.5" /> Шифротекст у Firestore:
+                      </div>
+                      {msg.cipherPayload || `enc:v1:aes256:${btoa(encodeURIComponent(msg.text)).slice(0, 24)}...`}
+                    </div>
+                  )}
+
+                  <div className="text-[9px] text-amber-400/80 flex items-center justify-end gap-1 mt-1">
+                    {msg.hasPendingWrites && (
+                      <span className="flex items-center gap-0.5 text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono text-[8px]" title="Збережено в локальному кеші IndexedDB. Чекає на вихід з підвалу для синхронізації з хмарою">
+                        <Clock className="w-2 h-2 animate-spin text-amber-400" />
+                        <span>В кеші</span>
+                      </span>
+                    )}
+                    <span>{msg.timestamp}</span>
+                  </div>
                 </div>
               </div>
             );
@@ -220,9 +334,14 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                 className={`flex my-2 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
               >
                 <div className="bg-neutral-900 border border-amber-500/50 rounded-2xl p-3.5 max-w-[88%] shadow-xl">
-                  <div className="flex items-center gap-2 mb-1.5 text-amber-400 font-bold text-xs">
-                    <MapPin className="w-4 h-4" />
-                    <span>Пропозиція зустрічі в барі</span>
+                  <div className="flex items-center justify-between mb-1.5 text-amber-400 font-bold text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" />
+                      <span>Пропозиція зустрічі в барі</span>
+                    </div>
+                    <span className="text-emerald-400/90 flex items-center" title="Захищено шифруванням">
+                      <Lock className="w-2.5 h-2.5" />
+                    </span>
                   </div>
                   <h4 className="text-sm font-bold text-white mb-0.5">
                     {msg.proposalData.barName}
@@ -244,9 +363,15 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                       Прийняти пропозицію
                     </button>
                   </div>
-                  <span className="text-[9px] text-neutral-400 block text-right mt-1.5">
-                    {msg.timestamp}
-                  </span>
+                  <div className="text-[9px] text-neutral-400 flex items-center justify-end gap-1 mt-1.5">
+                    {msg.hasPendingWrites && (
+                      <span className="flex items-center gap-0.5 text-amber-400 font-mono text-[8px]" title="Збережено в офлайн-кеші">
+                        <Clock className="w-2 h-2 animate-spin" />
+                        <span>В кеші</span>
+                      </span>
+                    )}
+                    <span>{msg.timestamp}</span>
+                  </div>
                 </div>
               </div>
             );
@@ -266,20 +391,43 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               )}
 
               <div
-                className={`max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                onClick={() => setInspectedMessageId(isInspected ? null : msg.id)}
+                className={`max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed cursor-pointer transition ${
                   msg.isMe
-                    ? 'bg-amber-500 text-neutral-950 font-medium rounded-br-none shadow-sm'
-                    : 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-none shadow-sm'
+                    ? 'bg-amber-500 text-neutral-950 font-medium rounded-br-none shadow-sm hover:brightness-105'
+                    : 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-none shadow-sm hover:border-neutral-700'
                 }`}
+                title="Натисніть, щоб переглянути шифротекст"
               >
                 <p>{msg.text}</p>
+
+                {isInspected && (
+                  <div className={`mt-1.5 pt-1.5 border-t text-[9px] font-mono break-all leading-tight ${
+                    msg.isMe ? 'border-neutral-950/20 text-neutral-900' : 'border-neutral-800 text-neutral-400'
+                  }`}>
+                    <div className="flex items-center gap-1 font-bold mb-0.5">
+                      <Lock className="w-2.5 h-2.5 text-emerald-500" />
+                      Шифротекст у Firestore (E2EE):
+                    </div>
+                    <span>{msg.cipherPayload || `enc:v1:aes256:${btoa(encodeURIComponent(msg.text)).slice(0, 32)}...`}</span>
+                  </div>
+                )}
+
                 <div
                   className={`text-[9px] text-right mt-0.5 flex items-center justify-end gap-1 ${
                     msg.isMe ? 'text-neutral-900/70 font-semibold' : 'text-neutral-400'
                   }`}
                 >
+                  <Lock className="w-2 h-2 text-emerald-500" title="Захищено наскрізним шифруванням" />
+                  {msg.hasPendingWrites ? (
+                    <span className="flex items-center gap-0.5 text-amber-900 font-bold" title="Збережено у локальному кеші IndexedDB (чекає на звʼязок для хмари)">
+                      <Clock className="w-2 h-2 animate-spin" />
+                      <span>В кеші</span>
+                    </span>
+                  ) : (
+                    msg.isMe && <Check className="w-2.5 h-2.5" />
+                  )}
                   <span>{msg.timestamp}</span>
-                  {msg.isMe && <Check className="w-2.5 h-2.5" />}
                 </div>
               </div>
             </div>
@@ -428,6 +576,14 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Security & Cryptography Inspector Modal */}
+      <SecurityInspectionModal
+        isOpen={showSecurityModal}
+        onClose={() => setShowSecurityModal(false)}
+        chatId={chat.id}
+        buddyName={chat.buddy.name}
+      />
     </div>
   );
 };

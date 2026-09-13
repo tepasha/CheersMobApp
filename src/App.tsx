@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActiveTab, BuddyProfile, ChatThread, DeviceMode, HangoutAlert, Message, AuthUser, AppLanguage, GeoBlockInfo } from './types';
 import { INITIAL_BUDDIES, INITIAL_CHATS, INITIAL_HANGOUTS } from './data/mockData';
 import { MobileFrame } from './components/mobile/MobileFrame';
@@ -14,6 +14,7 @@ import { ArchitectureHub } from './components/architecture/ArchitectureHub';
 import { RussiaBlockScreen } from './components/mobile/RussiaBlockScreen';
 import { sounds } from './services/soundService';
 import { authService } from './services/authService';
+import { firestoreSyncService } from './services/firestoreSyncService';
 import {
   checkRussianTerritoryRestriction,
   detectLanguageFromGeo,
@@ -60,6 +61,17 @@ export default function App() {
   const [hangouts, setHangouts] = useState<HangoutAlert[]>(INITIAL_HANGOUTS);
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const [selectedChat, setSelectedChat] = useState<ChatThread | null>(null);
+
+  // Subscribe to realtime live Hangouts & bar check-ins from Cloud Firestore
+  useEffect(() => {
+    const unsub = firestoreSyncService.subscribeToLiveHangouts(
+      userLocation,
+      (syncedHangouts) => {
+        setHangouts(syncedHangouts);
+      }
+    );
+    return unsub;
+  }, [userLocation]);
 
   // Update user coordinates and synchronize buddy distances across the app
   const handleUpdateLocation = (newLoc: UserGeoLocation) => {
@@ -181,7 +193,60 @@ export default function App() {
     handleOpenChatWithBuddy(buddy);
   };
 
-  // Handle Send Message
+  // Real-time Firestore encrypted messages listener for the active chat
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const unsubscribe = firestoreSyncService.subscribeToEncryptedChat(
+      selectedChat.id,
+      currentUser.id,
+      (incomingMsgs) => {
+        if (!incomingMsgs || incomingMsgs.length === 0) return;
+
+        setSelectedChat((prev) => {
+          if (!prev || prev.id !== selectedChat.id) return prev;
+          const existingIds = new Set(prev.messages.map((m) => m.id));
+          const toAdd = incomingMsgs.filter((m) => !existingIds.has(m.id));
+          if (toAdd.length === 0) return prev;
+
+          const updatedMessages = [...prev.messages, ...toAdd];
+          const latest = updatedMessages[updatedMessages.length - 1];
+          return {
+            ...prev,
+            messages: updatedMessages,
+            lastMessage: latest ? latest.text : prev.lastMessage,
+            lastMessageTime: latest ? latest.timestamp : prev.lastMessageTime,
+          };
+        });
+
+        // Also sync overall chats list
+        setChats((prevChats) =>
+          prevChats.map((c) => {
+            if (c.id === selectedChat.id) {
+              const existingIds = new Set(c.messages.map((m) => m.id));
+              const toAdd = incomingMsgs.filter((m) => !existingIds.has(m.id));
+              if (toAdd.length === 0) return c;
+              const updatedMessages = [...c.messages, ...toAdd];
+              const latest = updatedMessages[updatedMessages.length - 1];
+              return {
+                ...c,
+                messages: updatedMessages,
+                lastMessage: latest ? latest.text : c.lastMessage,
+                lastMessageTime: latest ? latest.timestamp : c.lastMessageTime,
+              };
+            }
+            return c;
+          })
+        );
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedChat?.id, currentUser.id]);
+
+  // Handle Send Message with End-to-End Encryption (E2EE) & Firestore Sync
   const handleSendMessage = (
     chatId: string,
     messageText: string,
@@ -194,13 +259,14 @@ export default function App() {
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
       chatId,
-      senderId: 'me',
+      senderId: currentUser.id || 'me',
       senderName: currentUser.name,
       text: messageText,
       timestamp: timeString,
       isMe: true,
       type,
       proposalData,
+      isEncrypted: true,
     };
 
     setChats((prevChats) =>
@@ -229,19 +295,58 @@ export default function App() {
       }
       return prev;
     });
+
+    // Encrypt client-side and synchronize directly to Cloud Firestore
+    firestoreSyncService.sendEncryptedMessage(chatId, newMsg).then((encryptedDoc) => {
+      if (encryptedDoc?.cipherPayload) {
+        // Update local message instance with generated cipher payload for inspector
+        setSelectedChat((prev) => {
+          if (!prev || prev.id !== chatId) return prev;
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === newMsg.id ? { ...m, cipherPayload: encryptedDoc.cipherPayload } : m
+            ),
+          };
+        });
+      }
+    }).catch((err) => {
+      console.warn('Firestore encrypted sync notice:', err);
+    });
   };
 
-  // Handle new Hangout / check-in
-  const handleNewHangout = (newHangout: HangoutAlert) => {
-    setHangouts((prev) => [newHangout, ...prev]);
+  // Handle new Hangout / live check-in with Cloud Firestore broadcast
+  const handleNewHangout = async (newHangout: HangoutAlert) => {
+    // Optimistic local update
+    setHangouts((prev) => [newHangout, ...prev.filter((h) => h.id !== newHangout.id)]);
+    // Instant Firestore publication
+    try {
+      await firestoreSyncService.publishHangout(newHangout);
+    } catch (err) {
+      console.warn('Firestore publish notice:', err);
+    }
   };
 
-  const handleJoinHangout = (hangoutId: string) => {
+  const handleJoinHangout = async (hangoutId: string) => {
     setHangouts((prev) =>
       prev.map((h) =>
         h.id === hangoutId ? { ...h, participantsCount: h.participantsCount + 1 } : h
       )
     );
+    try {
+      await firestoreSyncService.joinLiveHangout(hangoutId, currentUser.id);
+    } catch (err) {
+      console.warn('Firestore join notice:', err);
+    }
+  };
+
+  const handleCloseHangout = async (hangoutId: string) => {
+    setHangouts((prev) => prev.filter((h) => h.id !== hangoutId));
+    try {
+      await firestoreSyncService.closeLiveHangout(hangoutId);
+    } catch (err) {
+      console.warn('Firestore close hangout notice:', err);
+    }
   };
 
   const unreadTotal = chats.reduce((acc, c) => acc + c.unreadCount, 0);
@@ -272,6 +377,8 @@ export default function App() {
             onSelectBuddy={(b) => handleOpenChatWithBuddy(b)}
             onOpenChat={handleOpenChatWithBuddy}
             onNewHangout={handleNewHangout}
+            hangouts={hangouts}
+            onJoinHangout={handleJoinHangout}
           />
         )}
 
@@ -279,11 +386,15 @@ export default function App() {
           <HangoutsView
             hangouts={hangouts}
             onJoinHangout={handleJoinHangout}
+            onCloseHangout={handleCloseHangout}
             onOpenBuddyChat={handleOpenChatByName}
             buddies={buddies}
             onNewHangout={handleNewHangout}
+            currentUserId={currentUser.id}
             currentUserName={currentUser.name}
+            currentUserAvatar={currentUser.avatar}
             currentLocationName={userLocation.locationName}
+            userLocation={userLocation}
           />
         )}
 

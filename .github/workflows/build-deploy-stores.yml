@@ -1,12 +1,6 @@
 name: Build & Release to Apple & Android Stores
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - main
-      - release/*
   workflow_dispatch:
     inputs:
       platform:

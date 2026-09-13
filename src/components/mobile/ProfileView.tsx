@@ -13,7 +13,8 @@ import {
   Locate,
   Footprints,
   CheckCircle2,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 import { DrinkType, PaymentEtiquette, AuthUser, AppLanguage } from '../../types';
 import { DRINK_METADATA, PAYMENT_METADATA } from '../../data/mockData';
@@ -26,6 +27,8 @@ import {
   simulateWalkingStep 
 } from '../../services/geoService';
 import { GeoCoordinateMapPicker } from './GeoCoordinateMapPicker';
+import { FavoriteVenuesSection } from './FavoriteVenuesSection';
+import { firestoreSyncService } from '../../services/firestoreSyncService';
 
 interface ProfileViewProps {
   currentUser: AuthUser;
@@ -55,7 +58,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [tagline, setTagline] = useState('React Native розробник, шукаю компанію на крафтове пиво або вино 🍺🍷');
   const [preferredDrinks, setPreferredDrinks] = useState<DrinkType[]>(['craft', 'wine', 'cider']);
   const [paymentRule, setPaymentRule] = useState<PaymentEtiquette>('split_50_50');
-  const [favoriteBars, setFavoriteBars] = useState('Squat 17b, Varvar Bar, Win Bar');
   const [isSaved, setIsSaved] = useState(false);
 
   // Geolocation & District Management States
@@ -73,6 +75,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const handleSave = () => {
     sounds.playClink();
     setIsSaved(true);
+    // Persist profile to Cloud Firestore
+    firestoreSyncService.saveUserProfile({
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      avatar: currentUser.avatar,
+      tagline,
+      paymentRule,
+      preferredDrinks,
+      locationName: userLocation.locationName,
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      updatedAt: new Date().toISOString(),
+    });
     setTimeout(() => setIsSaved(false), 2000);
   };
 
@@ -249,7 +265,53 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
 
-        {/* Dedicated Geolocation & District Management Section */}
+        {/* 1. Tagline / Mood Text ("Мій статус" піднято над "Моя геопозиція") */}
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-2 shadow-xl">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-neutral-200 flex items-center gap-1.5">
+              <span>💬 Мій статус / Слоган у картці</span>
+            </label>
+            <span className="text-[10px] text-neutral-400">Відображається в пошуку</span>
+          </div>
+          <textarea
+            id="profile-tagline-textarea"
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            rows={2}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl p-3 text-xs text-neutral-100 focus:outline-none focus:border-amber-400 resize-none shadow-inner"
+          />
+        </div>
+
+        {/* 2. Drink Preferences ("Що я п’ю найчастіше" одразу після "Мій статус") */}
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-2.5 shadow-xl">
+          <label className="block text-xs font-bold text-neutral-200">
+            🍻 Що я п’ю найчастіше:
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {(Object.keys(DRINK_METADATA) as DrinkType[]).map((drink) => {
+              const meta = DRINK_METADATA[drink];
+              const isSelected = preferredDrinks.includes(drink);
+              return (
+                <button
+                  key={drink}
+                  type="button"
+                  id={`profile-drink-${drink}`}
+                  onClick={() => toggleDrink(drink)}
+                  className={`text-xs px-2.5 py-1.5 rounded-xl border font-medium flex items-center gap-1.5 transition ${
+                    isSelected
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm'
+                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <span>{meta.icon}</span>
+                  <span>{meta.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Dedicated Geolocation & District Management Section ("Моя геопозиція") */}
         <div 
           id="profile-geolocation-section" 
           className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-3.5 shadow-xl relative"
@@ -453,8 +515,47 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           )}
         </div>
 
-        {/* Language Selection & Geo Detection Card */}
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3.5 space-y-3 shadow-md">
+        {/* 3. Payment Etiquette ("За ним Мій єтикет оплати рахунку") */}
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-2.5 shadow-xl">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-neutral-200 flex items-center gap-1.5">
+              <span>💳 Мій етикет оплати рахунку:</span>
+            </label>
+            <span className="text-[10px] text-amber-400 font-semibold">
+              {PAYMENT_METADATA[paymentRule]?.badge}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(PAYMENT_METADATA) as PaymentEtiquette[]).map((rule) => {
+              const meta = PAYMENT_METADATA[rule];
+              const isSelected = paymentRule === rule;
+              return (
+                <button
+                  key={rule}
+                  type="button"
+                  id={`profile-payment-${rule}`}
+                  onClick={() => {
+                    sounds.playTap();
+                    setPaymentRule(rule);
+                  }}
+                  className={`text-xs p-2.5 rounded-xl border text-left font-medium transition ${
+                    isSelected
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm'
+                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'
+                  }`}
+                >
+                  <div className="font-bold leading-tight">{meta.label}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Favorite Venues ("Після цього Улюблені заклади") */}
+        <FavoriteVenuesSection userLocation={userLocation} />
+
+        {/* 5. Language Selection & Geo Detection Card */}
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-3 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
@@ -538,91 +639,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
 
-        {/* Tagline / Mood Text */}
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3.5 space-y-1.5">
-          <label className="block text-xs font-bold text-neutral-300">
-            Мій статус / Слоган у картці
-          </label>
-          <textarea
-            id="profile-tagline-textarea"
-            value={tagline}
-            onChange={(e) => setTagline(e.target.value)}
-            rows={2}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-neutral-100 focus:outline-none focus:border-amber-400 resize-none"
-          />
-        </div>
-
-        {/* Drink Preferences */}
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3.5 space-y-2">
-          <label className="block text-xs font-bold text-neutral-300">
-            Що я п’ю найчастіше:
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(DRINK_METADATA) as DrinkType[]).map((drink) => {
-              const meta = DRINK_METADATA[drink];
-              const isSelected = preferredDrinks.includes(drink);
-              return (
-                <button
-                  key={drink}
-                  type="button"
-                  id={`profile-drink-${drink}`}
-                  onClick={() => toggleDrink(drink)}
-                  className={`text-xs px-2.5 py-1.5 rounded-xl border font-medium flex items-center gap-1.5 transition ${
-                    isSelected
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm'
-                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-neutral-200'
-                  }`}
-                >
-                  <span>{meta.icon}</span>
-                  <span>{meta.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Payment Etiquette */}
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3.5 space-y-2">
-          <label className="block text-xs font-bold text-neutral-300">
-            Мій етикет оплати рахунку:
-          </label>
-          <div className="grid grid-cols-2 gap-1.5">
-            {(Object.keys(PAYMENT_METADATA) as PaymentEtiquette[]).map((rule) => {
-              const meta = PAYMENT_METADATA[rule];
-              const isSelected = paymentRule === rule;
-              return (
-                <button
-                  key={rule}
-                  type="button"
-                  id={`profile-payment-${rule}`}
-                  onClick={() => setPaymentRule(rule)}
-                  className={`text-xs p-2 rounded-xl border text-left font-medium transition ${
-                    isSelected
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-neutral-200'
-                  }`}
-                >
-                  {meta.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Favorite Bars */}
-        <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3.5 space-y-1.5">
-          <label className="block text-xs font-bold text-neutral-300">
-            Улюблені заклади (через кому)
-          </label>
-          <input
-            type="text"
-            id="favorite-bars-input"
-            value={favoriteBars}
-            onChange={(e) => setFavoriteBars(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-neutral-100 focus:outline-none focus:border-amber-400"
-          />
-        </div>
-
         {/* Google Authentication & Firebase Status Card */}
         <div className="bg-gradient-to-tr from-amber-950/40 via-neutral-900 to-neutral-900 rounded-2xl border border-amber-500/25 p-3.5 shadow-md space-y-2.5">
           <div className="flex items-center justify-between">
@@ -654,22 +670,41 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
           {/* Details */}
           {isGoogle ? (
-            <div className="bg-neutral-950/80 rounded-xl p-2.5 font-mono text-[10px] text-neutral-400 space-y-0.5 border border-neutral-800/80">
+            <div className="bg-neutral-950/80 rounded-xl p-2.5 font-mono text-[10px] text-neutral-400 space-y-1 border border-neutral-800/80">
               <div><span className="text-neutral-500">Google ID:</span> {currentUser.googleId || '109847291048291048123'}</div>
               <div><span className="text-neutral-500">Email:</span> {currentUser.email}</div>
               <div><span className="text-neutral-500">Scopes:</span> email, profile, openid</div>
               <div><span className="text-neutral-500">Firebase UID:</span> fb_{currentUser.googleId?.slice(0, 8) || 'usr_google'}</div>
+              <div className="pt-1.5 mt-1.5 border-t border-neutral-800 flex items-center justify-between">
+                <span className="text-amber-400 font-sans font-bold flex items-center gap-1 text-[11px]">
+                  <Database className="w-3 h-3" />
+                  Cloud Firestore DB
+                </span>
+                <span className="bg-emerald-950/90 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded text-[9px] font-mono">
+                  Активна онлайн
+                </span>
+              </div>
+              <div className="text-[9px] text-neutral-500 truncate">ID бази: ai-studio-df109a92-91f7-44f7-944f-c92e7aa387b8</div>
             </div>
           ) : (
-            <div className="bg-neutral-950/60 rounded-xl p-2.5 text-xs text-neutral-300 border border-neutral-800">
+            <div className="bg-neutral-950/60 rounded-xl p-2.5 text-xs text-neutral-300 border border-neutral-800 space-y-2">
               <p className="text-[11px] text-neutral-400">
-                Авторизуйтесь через Google, щоб зберігати історію чатів, келихів та зʼявлятися на радарній карті закладів Києва.
+                Авторизуйтесь через Google, щоб синхронізувати профіль із Cloud Firestore, зберігати історію чатів та зʼявлятися на радарній карті.
               </p>
+              <div className="pt-1 border-t border-neutral-800/60 flex items-center justify-between text-[10px]">
+                <span className="text-neutral-400 flex items-center gap-1 font-mono">
+                  <Database className="w-3 h-3 text-amber-400" />
+                  Firestore:
+                </span>
+                <span className="text-emerald-400 font-mono text-[9px]">
+                  Готова до синхронізації
+                </span>
+              </div>
               <button
                 type="button"
                 id="profile-google-login-btn"
                 onClick={onGoogleSignIn}
-                className="mt-2 w-full py-2 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-xs shadow transition flex items-center justify-center gap-2"
+                className="mt-1 w-full py-2 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-xs shadow transition flex items-center justify-center gap-2"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                   <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>

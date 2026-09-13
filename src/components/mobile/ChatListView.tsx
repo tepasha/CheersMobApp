@@ -1,6 +1,7 @@
-import React from 'react';
-import { Beer, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Beer, ChevronRight, Lock, ShieldCheck, WifiOff, Database } from 'lucide-react';
 import { ChatThread } from '../../types';
+import { firestoreSyncService } from '../../services/firestoreSyncService';
 
 interface ChatListViewProps {
   chats: ChatThread[];
@@ -13,6 +14,15 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
   onSelectChat,
   onQuickDiscover,
 }) => {
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const unsub = firestoreSyncService.onNetworkStatusChange((online, basement) => {
+      setIsOffline(!online || basement);
+    });
+    return unsub;
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-neutral-950 overflow-y-auto no-scrollbar select-none">
       {/* Top Header */}
@@ -23,7 +33,35 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
           </h2>
           <p className="text-[10px] text-neutral-400">Спільні келихи у реальному часі</p>
         </div>
+
+        <div className="flex items-center gap-1.5">
+          {isOffline && (
+            <div 
+              className="flex items-center gap-1 text-[9px] bg-amber-950/80 border border-amber-500/40 text-amber-300 px-2 py-1 rounded-lg font-medium shadow-sm"
+              title="Підвальний бар: Локальний кеш IndexedDB активний"
+            >
+              <WifiOff className="w-3 h-3 text-amber-400 animate-pulse" />
+              <span>Офлайн-кеш</span>
+            </div>
+          )}
+
+          <div 
+            id="chats-e2ee-badge"
+            className="p-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shadow-sm flex items-center justify-center select-none"
+            title="Захищено наскрізним шифруванням"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          </div>
+        </div>
       </div>
+
+      {/* Offline basement bar notice if disconnected */}
+      {isOffline && (
+        <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-neutral-900/90 border border-amber-500/30 flex items-center gap-2 text-[10px] text-neutral-300">
+          <Database className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Усі діалоги завантажені з локального кешу. Ви можете писати тости — вони відправляться при виході з підвалу.</span>
+        </div>
+      )}
 
       {/* Matches Horizontal Scroll Strip (Нові метчі) */}
       <div className="px-4 pt-3 pb-2 border-b border-neutral-900">
@@ -91,7 +129,10 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                   <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition">
                     {chat.buddy.name}
                   </h4>
-                  <span className="text-[10px] text-neutral-400">{chat.lastMessageTime}</span>
+                  <div className="flex items-center gap-1 text-[10px] text-neutral-400">
+                    <Lock className="w-2.5 h-2.5 text-emerald-500/80" title="Захищено E2EE" />
+                    <span>{chat.lastMessageTime}</span>
+                  </div>
                 </div>
                 <p className="text-xs text-neutral-300 truncate">
                   {chat.lastMessage}
