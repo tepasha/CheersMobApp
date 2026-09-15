@@ -23,6 +23,8 @@ import {
   RefreshCw,
   Key,
   X,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import {
   APIProvider,
@@ -36,6 +38,7 @@ import {
 } from '@vis.gl/react-google-maps';
 import { BuddyProfile, HangoutAlert } from '../../types';
 import { sounds } from '../../services/soundService';
+import { friendsService } from '../../services/friendsService';
 import { ActivityAnalyticsModal } from './ActivityAnalyticsModal';
 import {
   UserGeoLocation,
@@ -1262,9 +1265,34 @@ export const MapView: React.FC<MapViewProps> = ({
               type="button"
               id="selected-view-profile-btn"
               onClick={() => onSelectBuddy(selectedBuddy)}
-              className="flex-1 py-1.5 bg-neutral-800 hover:bg-neutral-750 text-[11px] font-semibold text-neutral-200 rounded-lg transition"
+              className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-750 text-[11px] font-semibold text-neutral-200 rounded-lg transition"
             >
               Анкета
+            </button>
+            <button
+              type="button"
+              id={`map-friend-btn-${selectedBuddy.id}`}
+              onClick={() => {
+                friendsService.toggleFriend(selectedBuddy);
+              }}
+              className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-lg flex items-center gap-1 transition border ${
+                friendsService.isFriend(selectedBuddy.id)
+                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-600/40'
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-amber-300 border-neutral-700'
+              }`}
+              title={friendsService.isFriend(selectedBuddy.id) ? 'У ваших друзях' : 'Додати до друзів'}
+            >
+              {friendsService.isFriend(selectedBuddy.id) ? (
+                <>
+                  <UserCheck className="w-3 h-3 text-emerald-400" />
+                  <span>У друзях</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-3 h-3 text-amber-400" />
+                  <span>+ Друг</span>
+                </>
+              )}
             </button>
             <button
               type="button"

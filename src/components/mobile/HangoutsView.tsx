@@ -19,13 +19,16 @@ import {
   Navigation,
   Trash2,
   LocateFixed,
+  Bell,
 } from 'lucide-react';
 import { BuddyProfile, HangoutAlert } from '../../types';
 import { sounds } from '../../services/soundService';
 import { ALL_TOASTS, getRandomToast, ToastItem } from '../../data/toastsData';
+import { pushNotificationService } from '../../services/pushNotificationService';
 import { ToastModal } from './ToastModal';
 import { ActivityAnalyticsModal } from './ActivityAnalyticsModal';
 import { UserGeoLocation } from '../../services/geoService';
+import { gamificationService } from '../../services/gamificationService';
 
 interface HangoutsViewProps {
   hangouts: HangoutAlert[];
@@ -119,7 +122,16 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
     if (!joinedHangouts.includes(id)) {
       setJoinedHangouts((prev) => [...prev, id]);
       onJoinHangout(id);
-      showToast(`🎉 Ви підсіли до столика ${name}!`);
+
+      const targetHangout = hangouts.find((h) => h.id === id);
+      const res = gamificationService.recordCheckIn(currentUserId, {
+        barName: targetHangout?.barName || name,
+        area: targetHangout?.locationArea || currentLocationName,
+        note: `Підсадка до столика ${name}`,
+        type: 'hangout_join',
+      });
+
+      showToast(`🎉 Ви підсіли до столика ${name}! +${res.earnedXp} XP (Рівень ${res.newLevel.level} ${res.newLevel.badgeEmoji})`);
     }
   };
 
@@ -161,8 +173,15 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
     };
 
     onNewHangout(newAlert);
+    const res = gamificationService.recordCheckIn(currentUserId, {
+      barName: barName.trim(),
+      area: locationArea.trim() || currentLocationName,
+      note: description.trim(),
+      type: 'bar_visit',
+    });
+
     setShowCreateModal(false);
-    showToast(`📡 Живий чек-ін у "${barName}" активовано та транслюється поблизу!`);
+    showToast(`📡 Живий чек-ін у "${barName}" активовано! +${res.earnedXp} XP 🍻`);
   };
 
   // Filtered hangouts computation
@@ -217,6 +236,36 @@ export const HangoutsView: React.FC<HangoutsViewProps> = ({
 
       {/* Hangouts Feed */}
       <div className="p-4 space-y-3 pb-8">
+        {/* Push Notification Trigger Card: Squat 17b Table Seat */}
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-neutral-900 to-neutral-900 border border-amber-500/40 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+              <Bell className="w-4 h-4 animate-bounce" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-neutral-100 flex items-center gap-1.5 truncate">
+                <span>Push-сповіщення</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">Squat 17b</span>
+              </div>
+              <p className="text-[10px] text-neutral-400 truncate">«Хтось присів за ваш столик у Squat 17b»</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="simulate-squat17b-push-btn"
+            onClick={() => {
+              pushNotificationService.triggerTableSeatNotification({
+                venueName: 'Squat 17b',
+                guestName: 'Богдан',
+              });
+              showToast('🔔 Сповіщення: «Хтось присів за ваш столик у Squat 17b»!');
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[11px] shadow-sm transition active:scale-95 shrink-0"
+          >
+            Тест Push
+          </button>
+        </div>
+
         {/* User Activity Peak Chart Teaser */}
         <button
           type="button"

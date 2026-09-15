@@ -47,6 +47,11 @@ export interface BuddyProfile {
     note: string;
     sinceTime: string;
   };
+  level?: number;
+  levelTitle?: string;
+  totalCheckIns?: number;
+  isFriend?: boolean;
+  friendSince?: string;
 }
 
 export interface Message {
@@ -100,6 +105,39 @@ export interface HangoutAlert {
   joinedUsers?: string[];
 }
 
+export interface MeetupParticipant {
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  role: 'host' | 'member';
+  status: 'going' | 'invited' | 'declined';
+  joinedAt?: string;
+}
+
+export interface GroupMeetup {
+  id: string;
+  title: string;
+  description: string;
+  venueName: string;
+  venueAddress: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  dateTimeIso?: string;
+  drinkPreference?: string;
+  maxParticipants: number;
+  participants: MeetupParticipant[];
+  creatorId: string;
+  creatorName: string;
+  creatorAvatar: string;
+  status: 'upcoming' | 'ongoing' | 'past' | 'cancelled';
+  lat?: number;
+  lng?: number;
+  distanceKm?: number;
+  distanceFormatted?: string;
+  createdAt: string;
+  topicTag?: string;
+}
+
 export interface FilterSettings {
   maxDistance: number;
   drinks: DrinkType[];
@@ -109,7 +147,7 @@ export interface FilterSettings {
   searchQuery?: string;
 }
 
-export type ActiveTab = 'discover' | 'map' | 'radar' | 'hangouts' | 'chats' | 'profile';
+export type ActiveTab = 'discover' | 'map' | 'radar' | 'hangouts' | 'friends' | 'chats' | 'profile';
 
 export type DeviceMode = 'iphone' | 'android' | 'fluid';
 
@@ -154,3 +192,77 @@ export interface FavoriteVenueItem {
   comment?: string;
   createdAt?: string;
 }
+
+export type PushNotificationType = 
+  | 'table_seat' 
+  | 'chat_message' 
+  | 'cheers_toast' 
+  | 'hangout_alert'
+  | 'friend_added'
+  | 'meetup_invite'
+  | 'meetup_joined';
+
+export interface PushNotificationItem {
+  id: string;
+  type: PushNotificationType;
+  title: string;
+  body: string;
+  subtitle?: string;
+  timestamp: string;
+  createdAt: number;
+  avatar?: string;
+  venueName?: string;
+  chatId?: string;
+  buddyId?: string;
+  buddyName?: string;
+  hangoutId?: string;
+  isRead?: boolean;
+  actionUrl?: string;
+  actionText?: string;
+}
+
+export interface PushNotificationSettings {
+  soundEnabled: boolean;
+  bannerEnabled: boolean;
+  webPushEnabled: boolean;
+  vibrateEnabled: boolean;
+}
+
+export interface UserLevelInfo {
+  level: number;
+  title: string;
+  badgeEmoji: string;
+  minXp: number;
+  maxXp: number;
+  perk: string;
+}
+
+export interface UserCheckInRecord {
+  id: string;
+  barName: string;
+  area: string;
+  timestamp: string;
+  pointsEarned: number;
+  note?: string;
+  buddyName?: string;
+  type: 'bar_visit' | 'hangout_join' | 'cheers_toast' | 'meetup_proposal';
+}
+
+export interface AchievementItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt?: string;
+  isUnlocked: boolean;
+  xpReward: number;
+}
+
+export interface UserGamificationState {
+  xp: number;
+  level: number;
+  totalMeetups: number;
+  checkIns: UserCheckInRecord[];
+  achievements: string[];
+}
+

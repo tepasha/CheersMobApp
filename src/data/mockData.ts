@@ -71,6 +71,9 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
       note: 'Сиджу у дворику біля ліхтаря, п’ю сидр. Підсідайте!',
       sinceTime: '15 хв тому',
     },
+    level: 3,
+    levelTitle: 'Завсідник барів 🍸',
+    totalCheckIns: 5,
   },
   {
     id: 'buddy-2',
@@ -93,6 +96,9 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
       note: 'Вільне місце за високим столом. Замовляю Pinot Noir.',
       sinceTime: '25 хв тому',
     },
+    level: 4,
+    levelTitle: 'Крафтовий сомельє 🍷',
+    totalCheckIns: 8,
   },
   {
     id: 'buddy-3',
@@ -110,6 +116,9 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
     favoriteBars: ['Loggerhead', 'Parovoz Speak Easy', 'Beatnik'],
     talkTopics: ['Міксологія', 'Світова історія', 'Шахи', 'Кіно 90-х'],
     online: false,
+    level: 2,
+    levelTitle: 'Любитель пінти 🍻',
+    totalCheckIns: 3,
   },
   {
     id: 'buddy-4',
@@ -127,6 +136,9 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
     favoriteBars: ["O'Brien's Irish Pub", 'Copper Head', 'This is Пивбар'],
     talkTopics: ['Ліга чемпіонів', 'Спорт', 'Мандрівки', 'Автомобілі'],
     online: true,
+    level: 1,
+    levelTitle: 'Новачок у шинку 🍺',
+    totalCheckIns: 1,
   },
   {
     id: 'buddy-5',
@@ -144,6 +156,9 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
     favoriteBars: ['Дріжджі Craft Pub', 'Каштан Coffee', 'Solod'],
     talkTopics: ['Настільні ігри', 'Психологія', 'Комікси', 'Котики'],
     online: true,
+    level: 5,
+    levelTitle: 'Легенда барної стійки 👑',
+    totalCheckIns: 14,
   },
   {
     id: 'buddy-6',
@@ -163,9 +178,12 @@ export const INITIAL_BUDDIES: BuddyProfile[] = [
     online: true,
     activeCheckIn: {
       barName: 'Театр пива «Правда»',
-      note: 'Слухаю Pravda Orchestra на 2-му поверсі, смакую Dark Ale.',
+      note: 'Свіжий розливний стаут, приєднуйтесь до столу!',
       sinceTime: '10 хв тому',
     },
+    level: 6,
+    levelTitle: 'Гросмейстер тостів 🏆',
+    totalCheckIns: 19,
   },
   {
     id: 'buddy-7',
@@ -372,7 +390,7 @@ export const INITIAL_CHATS: ChatThread[] = [
         chatId: 'chat-1',
         senderId: 'me',
         senderName: 'Я',
-        text: 'Привіт! Так, саме розгортаю новий проект на Expo та MongoDB))',
+        text: 'Привіт! Так, саме розгортаю новий проект на Expo та Firebase (Firestore) 🚀',
         timestamp: '19:40',
         isMe: true,
       },

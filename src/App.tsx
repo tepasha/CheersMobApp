@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ActiveTab, BuddyProfile, ChatThread, DeviceMode, HangoutAlert, Message, AuthUser, AppLanguage, GeoBlockInfo } from './types';
+import { ActiveTab, BuddyProfile, ChatThread, DeviceMode, HangoutAlert, Message, AuthUser, AppLanguage, GeoBlockInfo, PushNotificationItem } from './types';
 import { INITIAL_BUDDIES, INITIAL_CHATS, INITIAL_HANGOUTS } from './data/mockData';
 import { MobileFrame } from './components/mobile/MobileFrame';
 import { BottomTabBar } from './components/mobile/BottomTabBar';
@@ -9,12 +9,20 @@ import { HangoutsView } from './components/mobile/HangoutsView';
 import { ChatListView } from './components/mobile/ChatListView';
 import { ChatRoomView } from './components/mobile/ChatRoomView';
 import { ProfileView } from './components/mobile/ProfileView';
+import { FriendsView } from './components/mobile/FriendsView';
 import { AuthModal } from './components/mobile/AuthModal';
 import { ArchitectureHub } from './components/architecture/ArchitectureHub';
 import { RussiaBlockScreen } from './components/mobile/RussiaBlockScreen';
+import { NotificationCenterModal } from './components/mobile/NotificationCenterModal';
+import { 
+  GamificationOnboardingTooltip, 
+  useGamificationOnboarding 
+} from './components/mobile/GamificationOnboardingTooltip';
 import { sounds } from './services/soundService';
 import { authService } from './services/authService';
 import { firestoreSyncService } from './services/firestoreSyncService';
+import { pushNotificationService } from './services/pushNotificationService';
+import { friendsService } from './services/friendsService';
 import {
   checkRussianTerritoryRestriction,
   detectLanguageFromGeo,
@@ -29,7 +37,7 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('discover');
-  const [deviceMode, setDeviceMode] = useState<DeviceMode>('iphone');
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>('fluid');
   const [userLocation, setUserLocation] = useState<UserGeoLocation>(INITIAL_USER_LOCATION);
 
   // App Language State (auto-detected by Geo & Browser, Russian strictly excluded)
@@ -61,6 +69,15 @@ export default function App() {
   const [hangouts, setHangouts] = useState<HangoutAlert[]>(INITIAL_HANGOUTS);
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const [selectedChat, setSelectedChat] = useState<ChatThread | null>(null);
+  const [friendsCount, setFriendsCount] = useState<number>(() => friendsService.getFriendIds().length);
+
+  // Subscribe to friends list updates
+  useEffect(() => {
+    const unsub = friendsService.subscribe((updatedFriends) => {
+      setFriendsCount(updatedFriends.length);
+    });
+    return unsub;
+  }, []);
 
   // Subscribe to realtime live Hangouts & bar check-ins from Cloud Firestore
   useEffect(() => {
@@ -113,6 +130,57 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser>(() => authService.getStoredUser());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+
+  // Push Notifications State & Web Notifications
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(() =>
+    pushNotificationService.getUnreadCount()
+  );
+  const [activePushBanner, setActivePushBanner] = useState<PushNotificationItem | null>(() =>
+    pushNotificationService.getActiveBanner()
+  );
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+
+  // New user gamification onboarding tooltip guide
+  const {
+    shouldShow: shouldShowGamificationTour,
+    markSeen: handleCloseGamificationTour,
+    reOpen: handleOpenGamificationTour,
+  } = useGamificationOnboarding(1200);
+
+  useEffect(() => {
+    const unsubscribe = pushNotificationService.subscribe((list, banner) => {
+      setUnreadNotifications(list.filter((n) => !n.isRead).length);
+      setActivePushBanner(banner);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Navigation handlers from Push Notifications
+  const handleNavigateToHangout = (_hangoutId?: string, _venueName?: string) => {
+    setActiveTab('hangouts');
+    setSelectedChat(null);
+  };
+
+  const handleNavigateToChat = (chatId?: string, buddyId?: string) => {
+    setActiveTab('chats');
+    if (chatId) {
+      const foundChat = chats.find((c) => c.id === chatId || c.buddy.id === buddyId);
+      if (foundChat) {
+        setSelectedChat(foundChat);
+        return;
+      }
+    }
+    if (buddyId) {
+      const foundBuddy = buddies.find((b) => b.id === buddyId);
+      if (foundBuddy) {
+        handleOpenChatWithBuddy(foundBuddy);
+        return;
+      }
+    }
+    if (chats.length > 0) {
+      setSelectedChat(chats[0]);
+    }
+  };
 
   // Quick Google Sign-In helper
   const handleGoogleQuickSignIn = async () => {
@@ -328,11 +396,20 @@ export default function App() {
   };
 
   const handleJoinHangout = async (hangoutId: string) => {
+    const target = hangouts.find((h) => h.id === hangoutId);
     setHangouts((prev) =>
       prev.map((h) =>
         h.id === hangoutId ? { ...h, participantsCount: h.participantsCount + 1 } : h
       )
     );
+
+    // Trigger push notification for table seat
+    pushNotificationService.triggerTableSeatNotification({
+      venueName: target?.barName || 'Squat 17b',
+      guestName: 'Богдан',
+      hangoutId,
+    });
+
     try {
       await firestoreSyncService.joinLiveHangout(hangoutId, currentUser.id);
     } catch (err) {
@@ -358,6 +435,11 @@ export default function App() {
       onOpenArchitecture={() => setIsArchitectureOpen(true)}
       currentUser={currentUser}
       onOpenAuth={() => setIsAuthModalOpen(true)}
+      onOpenNotifications={() => setIsNotificationCenterOpen(true)}
+      unreadNotificationsCount={unreadNotifications}
+      activeBanner={activePushBanner}
+      onNavigateToHangout={handleNavigateToHangout}
+      onNavigateToChat={handleNavigateToChat}
     >
       {/* Screen Views based on active Tab */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -398,6 +480,16 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'friends' && (
+          <FriendsView
+            buddies={buddies}
+            onOpenChat={handleOpenChatWithBuddy}
+            onNavigateToDiscover={() => setActiveTab('discover')}
+            onNavigateToMap={() => setActiveTab('map')}
+            userLocation={userLocation}
+          />
+        )}
+
         {activeTab === 'chats' && (
           selectedChat ? (
             <ChatRoomView
@@ -426,6 +518,8 @@ export default function App() {
             onTriggerRuBlockTest={handleTriggerRuBlockTest}
             userLocation={userLocation}
             onUpdateLocation={handleUpdateLocation}
+            onOpenNotifications={() => setIsNotificationCenterOpen(true)}
+            onOpenGamificationTour={handleOpenGamificationTour}
           />
         )}
       </div>
@@ -441,7 +535,9 @@ export default function App() {
           }}
           unreadCount={unreadTotal}
           activeHangoutsCount={hangouts.length}
+          friendsCount={friendsCount}
           currentLanguage={currentLanguage}
+          showGamificationTooltip={shouldShowGamificationTour}
         />
       )}
 
@@ -464,10 +560,29 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {/* React Native & Expo + MongoDB Architecture Hub */}
+      {/* React Native & Expo + Firebase (Firestore & Auth) Architecture Hub */}
       <ArchitectureHub
         isOpen={isArchitectureOpen}
         onClose={() => setIsArchitectureOpen(false)}
+      />
+
+      {/* Push Notification Center & Live Simulator Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        onNavigateToHangout={handleNavigateToHangout}
+        onNavigateToChat={handleNavigateToChat}
+      />
+
+      {/* Interactive Onboarding Tooltip Guide for Points & Level System */}
+      <GamificationOnboardingTooltip
+        isOpen={shouldShowGamificationTour}
+        onClose={handleCloseGamificationTour}
+        onNavigateToProfile={() => {
+          sounds.playClink();
+          setActiveTab('profile');
+          setSelectedChat(null);
+        }}
       />
     </MobileFrame>
   );

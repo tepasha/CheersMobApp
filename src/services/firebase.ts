@@ -13,7 +13,21 @@ import {
   waitForPendingWrites,
   Firestore 
 } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import defaultFirebaseConfig from '../../firebase-applet-config.json';
+
+// Retrieve Firebase credentials from environment variables / secrets (VITE_FIREBASE_*)
+// with fallback to default project config if secrets are not yet configured.
+export const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig.projectId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || defaultFirebaseConfig.firestoreDatabaseId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || defaultFirebaseConfig.measurementId || '',
+  oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || defaultFirebaseConfig.oAuthClientId || '',
+};
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
@@ -41,28 +55,51 @@ try {
 export const db = firestoreInstance;
 export const auth = getAuth(app);
 
-// Automatically initialize anonymous auth session if not signed in, so request.auth is populated in Firestore rules
+// Cached flag to track if anonymous sign-in is disabled in Firebase Console
+let isAnonymousAuthRestricted = false;
+
+// Ensure Firebase Auth user session safely without triggering admin-restricted-operation error
 export function ensureFirebaseAuth(): Promise<string | null> {
   return new Promise((resolve) => {
-    onAuthStateChanged(auth, async (user) => {
+    // If a user is already authenticated (Google OAuth or email)
+    if (auth.currentUser) {
+      resolve(auth.currentUser.uid);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      unsubscribe();
       if (user) {
         resolve(user.uid);
-      } else {
-        try {
-          const cred = await signInAnonymously(auth);
-          resolve(cred.user.uid);
-        } catch (err) {
-          console.warn('[Firebase Auth] Anonymous sign-in notice:', err);
+        return;
+      }
+
+      // If anonymous auth is already marked as restricted in project settings, skip
+      if (isAnonymousAuthRestricted) {
+        resolve(null);
+        return;
+      }
+
+      try {
+        const cred = await signInAnonymously(auth);
+        resolve(cred.user.uid);
+      } catch (err: unknown) {
+        const errObj = err as { code?: string; message?: string };
+        // If Anonymous Auth provider is not enabled in Firebase Console (auth/admin-restricted-operation),
+        // gracefully handle without warnings; Google OAuth and local guest mode are active.
+        if (
+          errObj?.code === 'auth/admin-restricted-operation' ||
+          errObj?.message?.includes('admin-restricted-operation')
+        ) {
+          isAnonymousAuthRestricted = true;
           resolve(null);
+          return;
         }
+        // Silent fallback for guest mode
+        resolve(null);
       }
     });
   });
-}
-
-// Trigger initial auth setup asynchronously
-if (typeof window !== 'undefined') {
-  ensureFirebaseAuth().catch(() => {});
 }
 
 // Network control for basement bars (offline testing & simulation)

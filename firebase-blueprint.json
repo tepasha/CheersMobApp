@@ -42,6 +42,21 @@
       },
       "required": ["id", "userId", "name", "lat", "lng"]
     },
+    "FriendItem": {
+      "title": "FriendItem",
+      "description": "A friend saved by the user for bar meetups and direct connection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "friendId": { "type": "string", "maxLength": 128 },
+        "friendName": { "type": "string", "maxLength": 100 },
+        "friendAvatar": { "type": "string", "maxLength": 500 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "addedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "friendId", "friendName"]
+    },
     "HangoutAlert": {
       "title": "HangoutAlert",
       "description": "Live beacon looking for company in a venue",
@@ -81,6 +96,31 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "chatId", "senderId"]
+    },
+    "GroupMeetup": {
+      "title": "GroupMeetup",
+      "description": "Scheduled group meetup in a bar or pub with invited participants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "venueName": { "type": "string", "maxLength": 120 },
+        "venueAddress": { "type": "string", "maxLength": 200 },
+        "scheduledDate": { "type": "string", "maxLength": 50 },
+        "scheduledTime": { "type": "string", "maxLength": 20 },
+        "drinkPreference": { "type": "string", "maxLength": 100 },
+        "maxParticipants": { "type": "number" },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 100 },
+        "creatorAvatar": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["upcoming", "ongoing", "past", "cancelled"] },
+        "participants": { "type": "array" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "venueName", "scheduledDate", "scheduledTime", "creatorId"]
     }
   },
   "firestore": {
@@ -95,6 +135,10 @@
     "/hangouts/{hangoutId}": {
       "schema": "HangoutAlert",
       "description": "Active hangout calls and bar invites"
+    },
+    "/group_meetups/{meetupId}": {
+      "schema": "GroupMeetup",
+      "description": "Scheduled group meetups in venues"
     },
     "/chats/{chatId}/messages/{messageId}": {
       "schema": "ChatMessage",

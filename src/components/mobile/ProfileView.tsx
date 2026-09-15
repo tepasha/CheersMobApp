@@ -14,7 +14,8 @@ import {
   Footprints,
   CheckCircle2,
   Search,
-  Database
+  Database,
+  Bell,
 } from 'lucide-react';
 import { DrinkType, PaymentEtiquette, AuthUser, AppLanguage } from '../../types';
 import { DRINK_METADATA, PAYMENT_METADATA } from '../../data/mockData';
@@ -29,6 +30,8 @@ import {
 import { GeoCoordinateMapPicker } from './GeoCoordinateMapPicker';
 import { FavoriteVenuesSection } from './FavoriteVenuesSection';
 import { firestoreSyncService } from '../../services/firestoreSyncService';
+import { pushNotificationService } from '../../services/pushNotificationService';
+import { GamificationProgressCard } from './GamificationProgressCard';
 
 interface ProfileViewProps {
   currentUser: AuthUser;
@@ -41,6 +44,8 @@ interface ProfileViewProps {
   onTriggerRuBlockTest: () => void;
   userLocation: UserGeoLocation;
   onUpdateLocation: (newLoc: UserGeoLocation) => void;
+  onOpenNotifications?: () => void;
+  onOpenGamificationTour?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -54,6 +59,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onTriggerRuBlockTest,
   userLocation,
   onUpdateLocation,
+  onOpenNotifications,
+  onOpenGamificationTour,
 }) => {
   const [tagline, setTagline] = useState('React Native розробник, шукаю компанію на крафтове пиво або вино 🍺🍷');
   const [preferredDrinks, setPreferredDrinks] = useState<DrinkType[]>(['craft', 'wine', 'cider']);
@@ -264,6 +271,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Gamification & Level Up Progress Card */}
+        <GamificationProgressCard
+          userId={currentUser.id}
+          userName={currentUser.name}
+          currentLocationName={userLocation.locationName}
+          onOpenTour={onOpenGamificationTour}
+          onCheckInSuccess={(bar, xp) => {
+            setGeoNotification(`🍻 Зараховано чекін у «${bar}» (+${xp} XP)!`);
+            setTimeout(() => setGeoNotification(null), 3500);
+          }}
+        />
 
         {/* 1. Tagline / Mood Text ("Мій статус" піднято над "Моя геопозиція") */}
         <div className="bg-neutral-900 rounded-3xl border border-neutral-800 p-4 space-y-2 shadow-xl">
@@ -637,6 +656,96 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <span>{t('test_ru_block_btn', currentLanguage)}</span>
             </button>
           </div>
+        </div>
+
+        {/* Push-сповіщення: Центр та симуляція реальних подій */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-neutral-900 to-neutral-900 rounded-2xl border border-amber-500/30 p-3.5 shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-neutral-100 flex items-center gap-1.5">
+                  <span>Push-сповіщення (Heads-up & Web API)</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded-full font-semibold border border-emerald-500/30">
+                    Live
+                  </span>
+                </h4>
+                <p className="text-[10px] text-neutral-400">
+                  Миттєві сповіщення про нових гостей за столиком та повідомлення
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              id="profile-push-squat17b-btn"
+              onClick={() => {
+                pushNotificationService.triggerTableSeatNotification({
+                  venueName: 'Squat 17b',
+                  guestName: 'Богдан',
+                });
+              }}
+              className="p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800/80 border border-amber-500/30 text-left transition active:scale-98 group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                  Стіл у барі 🍻
+                </span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
+                  Squat 17b
+                </span>
+              </div>
+              <div className="text-xs font-bold text-neutral-100 group-hover:text-amber-300 transition">
+                «Хтось присів за ваш столик у Squat 17b»
+              </div>
+              <div className="text-[10px] text-neutral-400 mt-1">
+                Симулювати дзвінок у шторку та банер
+              </div>
+            </button>
+
+            <button
+              type="button"
+              id="profile-push-companion-btn"
+              onClick={() => {
+                pushNotificationService.triggerChatMessageNotification({
+                  buddyName: 'Оксана',
+                  messageText: 'Я вже замовила сидр біля барної стійки! Ти де? 🍻',
+                });
+              }}
+              className="p-2.5 rounded-xl bg-neutral-950/80 hover:bg-neutral-800/80 border border-sky-500/30 text-left transition active:scale-98 group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">
+                  Повідомлення 💬
+                </span>
+                <span className="text-[10px] bg-sky-500/20 text-sky-300 px-1.5 py-0.2 rounded">
+                  Чат
+                </span>
+              </div>
+              <div className="text-xs font-bold text-neutral-100 group-hover:text-sky-300 transition">
+                «Нове повідомлення від супутника»
+              </div>
+              <div className="text-[10px] text-neutral-400 mt-1">
+                Симулювати повідомлення від Оксани
+              </div>
+            </button>
+          </div>
+
+          {onOpenNotifications && (
+            <button
+              type="button"
+              id="profile-open-notifications-center-btn"
+              onClick={onOpenNotifications}
+              className="w-full py-2 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98"
+            >
+              <Bell className="w-3.5 h-3.5 text-amber-400" />
+              <span>Відкрити Центр сповіщень та налаштування</span>
+            </button>
+          )}
         </div>
 
         {/* Google Authentication & Firebase Status Card */}

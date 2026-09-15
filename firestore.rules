@@ -35,6 +35,11 @@ service cloud.firestore {
       match /favorites/{venueId} {
         allow read, write: if isOwner(userId);
       }
+
+      // User's Friends Subcollection
+      match /friends/{friendId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Hangout Alerts / Live Beacons

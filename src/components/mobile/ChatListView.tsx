@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Beer, ChevronRight, Lock, ShieldCheck, WifiOff, Database } from 'lucide-react';
+import { Beer, ChevronRight, Lock, ShieldCheck, WifiOff, Database, Bell } from 'lucide-react';
 import { ChatThread } from '../../types';
 import { firestoreSyncService } from '../../services/firestoreSyncService';
+import { pushNotificationService } from '../../services/pushNotificationService';
 
 interface ChatListViewProps {
   chats: ChatThread[];
@@ -100,6 +101,36 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Push Notification Trigger Card: Companion message */}
+      <div className="mx-3 mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-sky-500/10 via-neutral-900 to-neutral-900 border border-sky-500/40 flex items-center justify-between gap-2 shadow-md">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-500/30">
+            <Bell className="w-3.5 h-3.5 animate-bounce" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-neutral-100 truncate">
+              «Нове повідомлення від супутника»
+            </div>
+            <p className="text-[9px] text-neutral-400 truncate">Оксана: «Я вже замовила сидр біля барної стійки! 🍻»</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="simulate-companion-msg-push-btn"
+          onClick={() => {
+            pushNotificationService.triggerChatMessageNotification({
+              buddyName: chats[0]?.buddy.name || 'Оксана',
+              messageText: 'Я вже замовила сидр біля барної стійки! Ти де? 🍻',
+              chatId: chats[0]?.id || 'chat-1',
+              buddyId: chats[0]?.buddy.id || 'buddy-1',
+            });
+          }}
+          className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-neutral-950 font-bold text-[10px] shadow-sm transition active:scale-95 shrink-0"
+        >
+          Тест Push
+        </button>
       </div>
 
       {/* Chat Threads List */}

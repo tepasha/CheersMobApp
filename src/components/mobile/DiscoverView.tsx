@@ -12,13 +12,17 @@ import {
   Rows3,
   LayoutGrid,
   Layers,
-  TrendingUp
+  TrendingUp,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { BuddyProfile, DrinkType, FilterSettings, MoodType } from '../../types';
 import { DRINK_METADATA, MOOD_METADATA, PAYMENT_METADATA, POPULAR_INTERESTS } from '../../data/mockData';
 import { sounds } from '../../services/soundService';
 import { formatDistance } from '../../services/geoService';
 import { ActivityAnalyticsModal } from './ActivityAnalyticsModal';
+import { gamificationService } from '../../services/gamificationService';
+import { friendsService } from '../../services/friendsService';
 
 interface DiscoverViewProps {
   buddies: BuddyProfile[];
@@ -41,6 +45,18 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [matchedBuddy, setMatchedBuddy] = useState<BuddyProfile | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'up' | null>(null);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
+  const [friendIds, setFriendIds] = useState<string[]>(() => friendsService.getFriendIds());
+
+  useEffect(() => {
+    const unsub = friendsService.subscribe(() => {
+      setFriendIds(friendsService.getFriendIds());
+    });
+    return unsub;
+  }, []);
+
+  const handleToggleFriend = (buddy: BuddyProfile) => {
+    friendsService.toggleFriend(buddy);
+  };
 
   // Filters state: distance, drinks, interests, moods, search
   const [filters, setFilters] = useState<FilterSettings>({
@@ -136,6 +152,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     if (!matchedIds.includes(buddy.id)) {
       setMatchedIds((prev) => [...prev, buddy.id]);
     }
+    // Gamification: toast / cheers earns points towards level-up
+    gamificationService.recordCheckIn('me', {
+      barName: buddy.activeCheckIn?.barName || buddy.favoriteBars[0] || 'Барний тост',
+      area: buddy.locationName,
+      buddyName: buddy.name,
+      note: `Тост келихами та знайомство з ${buddy.name}! 🍻`,
+      type: 'cheers_toast',
+    });
+
     setTimeout(() => {
       sounds.playMatchCheer();
       setMatchedBuddy(buddy);
@@ -477,6 +502,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           {buddy.online && (
                             <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-neutral-950" />
                           )}
+                          {buddy.levelTitle && (
+                            <span className="text-[10px] font-bold text-amber-300 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800/50 shadow-sm">
+                              {buddy.levelTitle}
+                            </span>
+                          )}
                         </h3>
                         <p className="text-[10px] text-amber-300/90 mt-0.5">{buddy.locationName}</p>
                       </div>
@@ -562,6 +592,30 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
                         <span>Чат</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        id={`feed-friend-btn-${buddy.id}`}
+                        onClick={() => handleToggleFriend(buddy)}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition border ${
+                          friendIds.includes(buddy.id)
+                            ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
+                            : 'bg-neutral-800 hover:bg-neutral-700 text-amber-300 border-neutral-700'
+                        }`}
+                        title={friendIds.includes(buddy.id) ? 'У ваших друзях' : 'Додати в друзі'}
+                      >
+                        {friendIds.includes(buddy.id) ? (
+                          <>
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="hidden sm:inline">У друзях</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="hidden sm:inline">У друзі</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -649,6 +703,24 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
                       <button
                         type="button"
+                        id={`grid-friend-btn-${buddy.id}`}
+                        onClick={() => handleToggleFriend(buddy)}
+                        className={`p-1.5 rounded-xl border transition ${
+                          friendIds.includes(buddy.id)
+                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700'
+                            : 'bg-neutral-800 text-amber-400 hover:text-white border-neutral-700'
+                        }`}
+                        title={friendIds.includes(buddy.id) ? 'У ваших друзях' : 'Додати в друзі'}
+                      >
+                        {friendIds.includes(buddy.id) ? (
+                          <UserCheck className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <UserPlus className="w-3 h-3" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setShowBioModal(buddy)}
                         className="p-1.5 rounded-xl bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700"
                         title="Детальніше"
@@ -731,6 +803,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           {currentBuddy.name}, {currentBuddy.age}
                           {currentBuddy.online && (
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-neutral-950" />
+                          )}
+                          {currentBuddy.levelTitle && (
+                            <span className="text-[11px] font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-lg border border-amber-800/50 shadow">
+                              {currentBuddy.levelTitle}
+                            </span>
                           )}
                         </h3>
                         <button
@@ -1106,28 +1183,57 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               </div>
             </div>
 
-            <div className="mt-5 flex gap-2">
+            <div className="mt-5 flex flex-col gap-2">
               <button
                 type="button"
-                id="bio-close-action-btn"
-                onClick={() => setShowBioModal(null)}
-                className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs"
-              >
-                Закрити
-              </button>
-              <button
-                type="button"
-                id="bio-cheers-action-btn"
+                id="bio-toggle-friend-btn"
                 onClick={() => {
-                  const b = showBioModal;
-                  setShowBioModal(null);
-                  handleTriggerMatch(b);
+                  if (showBioModal) {
+                    handleToggleFriend(showBioModal);
+                  }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg"
+                className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition border ${
+                  showBioModal && friendIds.includes(showBioModal.id)
+                    ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
+                    : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                }`}
               >
-                <Beer className="w-4 h-4" />
-                <span>Будьмо!</span>
+                {showBioModal && friendIds.includes(showBioModal.id) ? (
+                  <>
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    <span>✓ У ваших друзях (натисніть, щоб видалити)</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 text-amber-400" />
+                    <span>+ Додати до друзів (+50 XP)</span>
+                  </>
+                )}
               </button>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  id="bio-close-action-btn"
+                  onClick={() => setShowBioModal(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs"
+                >
+                  Закрити
+                </button>
+                <button
+                  type="button"
+                  id="bio-cheers-action-btn"
+                  onClick={() => {
+                    const b = showBioModal;
+                    setShowBioModal(null);
+                    handleTriggerMatch(b);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg"
+                >
+                  <Beer className="w-4 h-4" />
+                  <span>Будьмо!</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

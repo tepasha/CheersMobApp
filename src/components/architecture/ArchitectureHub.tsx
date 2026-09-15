@@ -25,7 +25,7 @@ interface ArchitectureHubProps {
 }
 
 export const ArchitectureHub: React.FC<ArchitectureHubProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'expo_app' | 'cicd_stores' | 'mongo_schemas' | 'backend_socket' | 'firebase_auth' | 'mongo_runner' | 'tests_lint'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'expo_app' | 'cicd_stores' | 'firestore_schemas' | 'firebase_cloud_funcs' | 'firebase_auth' | 'firestore_runner' | 'tests_lint'>('overview');
   const [cicdSubTab, setCicdSubTab] = useState<'github_action' | 'eas_json' | 'fastlane' | 'app_json' | 'secrets'>('github_action');
   const [isSimulatingCi, setIsSimulatingCi] = useState(false);
   const [ciLogs, setCiLogs] = useState<string[]>([]);
@@ -109,41 +109,68 @@ export const ArchitectureHub: React.FC<ArchitectureHubProps> = ({ isOpen, onClos
     });
   };
 
-  const handleRunMongoQuery = () => {
+  const handleRunFirestoreQuery = () => {
     setIsExecutingQuery(true);
     sounds.playMessageSent();
     setTimeout(() => {
       setIsExecutingQuery(false);
-      const mockResult = [
-        {
-          _id: "66e2a1b9c45012e8f1",
-          name: "Богдан",
-          age: 28,
-          preferredDrinks: ["craft", "cider"],
-          location: {
-            type: "Point",
-            coordinates: [30.518, 50.463] // [lng, lat]
-          },
-          distanceMeters: 620,
-          currentMood: "chill_talk",
-          activeCheckIn: {
-            barName: "Squat 17b",
-            sinceTime: new Date().toISOString()
-          }
+      const mockResult = {
+        firestoreCollection: "users",
+        status: "success (Real-time Snapshot)",
+        filtersApplied: [
+          { field: "lat", op: ">=", value: 50.445 },
+          { field: "lat", op: "<=", value: 50.481 },
+          { field: "preferredDrinks", op: "array-contains", value: queryDrink },
+        ],
+        queryMetadata: {
+          readTime: new Date().toISOString(),
+          targetRadiusMeters: queryDistance,
+          cacheHit: true,
+          offlinePersistence: "IndexedDB / AsyncStorage (Firebase SDK)",
+          listenersActive: 1,
         },
-        {
-          _id: "66e2a1b9c45012e8f4",
-          name: "Ярослав",
-          age: 25,
-          preferredDrinks: ["beer", "craft"],
-          location: {
-            type: "Point",
-            coordinates: [30.516, 50.435]
+        documentsCount: 2,
+        documents: [
+          {
+            id: "user_bogdan_podil",
+            path: "users/user_bogdan_podil",
+            exists: true,
+            data: {
+              name: "Богдан",
+              age: 28,
+              preferredDrinks: ["craft", "cider"],
+              lat: 50.463,
+              lng: 30.518,
+              locationName: "Поділ, Київ",
+              distanceMeters: 620,
+              paymentRule: "split_50_50",
+              currentMood: "chill_talk",
+              activeCheckIn: {
+                barName: "Squat 17b",
+                sinceTime: new Date().toISOString()
+              },
+              updatedAt: new Date().toISOString()
+            }
           },
-          distanceMeters: 1840,
-          currentMood: "sports_football"
-        }
-      ];
+          {
+            id: "user_yaroslav_pechersk",
+            path: "users/user_yaroslav_pechersk",
+            exists: true,
+            data: {
+              name: "Ярослав",
+              age: 25,
+              preferredDrinks: ["beer", "craft"],
+              lat: 50.435,
+              lng: 30.516,
+              locationName: "Печерськ, Київ",
+              distanceMeters: 1840,
+              paymentRule: "each_for_themselves",
+              currentMood: "sports_football",
+              updatedAt: new Date().toISOString()
+            }
+          }
+        ]
+      };
       setQueryResult(JSON.stringify(mockResult, null, 2));
     }, 400);
   };
@@ -209,12 +236,12 @@ export default function App() {
       }
     });
 
-    // 2. Request GPS permissions for MongoDB 2dsphere near search
+    // 2. Request GPS permissions and sync to Firestore
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({});
-        // Sync coords to MongoDB backend via API
+        // Sync coordinates to Cloud Firestore /users/{uid}
       }
     })();
 
@@ -237,146 +264,123 @@ export default function App() {
     </NavigationContainer>
   );
 }`,
-    mongo_schemas: `// models/User.js - MongoDB Mongoose Schema
-const mongoose = require('mongoose');
+    firestore_schemas: `// firestore.rules & Data Schema - Google Cloud Firestore
+// Структура колекцій у Firestore:
+//  - /users/{userId} -> Профіль, координати lat/lng, напій, платіжний етикет
+//  - /users/{userId}/favorites/{venueId} -> Збережені бари Подолу/Києва
+//  - /hangouts/{hangoutId} -> Спонтанні збори на пиво/вино (Real-time Beacon)
+//  - /chats/{chatId}/messages/{messageId} -> Наскрізно зашифровані тости та чат
 
-const UserSchema = new mongoose.Schema({
-  firebaseUid: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true,
-  },
-  email: { type: String, required: true },
-  name: { type: String, required: true },
-  age: { type: Number, required: true },
-  avatarUrl: String,
-  tagline: String,
-  bio: String,
-  
-  // Geospatial GeoJSON for MongoDB 2dsphere index ($nearSphere)
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point',
-      required: true,
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true,
-    },
-  },
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128; }
 
-  preferredDrinks: [{
-    type: String,
-    enum: ['beer', 'craft', 'wine', 'cocktail', 'whiskey', 'cider', 'shots', 'non_alcoholic'],
-  }],
-
-  paymentRule: {
-    type: String,
-    enum: ['split_50_50', 'each_for_themselves', 'i_treat', 'rounds'],
-    default: 'split_50_50',
-  },
-
-  currentMood: {
-    type: String,
-    enum: ['chill_talk', 'coding_it', 'board_games', 'bar_crawl', 'sports_football', 'deep_philosophy'],
-  },
-
-  favoriteBars: [String],
-  talkTopics: [String],
-
-  activeCheckIn: {
-    barName: String,
-    note: String,
-    sinceTime: Date,
-  },
-
-  lastOnlineAt: { type: Date, default: Date.now },
-}, { timestamps: true });
-
-// CRITICAL for MongoDB geospatial query efficiency:
-UserSchema.index({ location: '2dsphere' });
-UserSchema.index({ preferredDrinks: 1, currentMood: 1 });
-
-module.exports = mongoose.model('User', UserSchema);`,
-    backend_socket: `// server.js - Node.js + Express + Socket.IO + MongoDB Mongoose
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const mongoose = require('mongoose');
-const admin = require('firebase-admin');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
-
-app.use(express.json());
-
-// 1. Connect MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sobutylnyk_db', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-// 2. Geospatial API Route: Find buddies within radius
-app.get('/api/buddies/near', async (req, res) => {
-  const { lng, lat, maxDistance = 3000, drink } = req.query;
-  try {
-    const query = {
-      location: {
-        $nearSphere: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)],
-          },
-          $maxDistance: parseInt(maxDistance), // in meters
-        },
-      },
-    };
-
-    if (drink) {
-      query.preferredDrinks = drink;
+    // Заборона за замовчуванням
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    const User = mongoose.model('User');
-    const buddies = await User.find(query).limit(30);
-    res.json(buddies);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Профілі собутильників
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidId(userId);
+      allow delete: if isOwner(userId);
+
+      match /favorites/{venueId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Тусовки та столики в барах
+    match /hangouts/{hangoutId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(hangoutId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Чати та тости "Будьмо!"
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
+      }
+    }
+  }
+}`,
+    firebase_cloud_funcs: `// functions/index.js - Firebase Cloud Functions (Node.js Serverless)
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onRequest } = require('firebase-functions/v2/https');
+const admin = require('firebase-admin');
+admin.initializeApp();
+
+const db = admin.firestore();
+
+// 1. Автоматичний тригер при надсиланні тосту "Будьмо! / Дзинь 🍻"
+exports.onToastCheersCreated = onDocumentCreated('chats/{chatId}/messages/{messageId}', async (event) => {
+  const msg = event.data.data();
+  const { chatId } = event.params;
+
+  if (msg.type === 'cheers') {
+    // Знаходимо співрозмовника
+    const chatDoc = await db.collection('chats').doc(chatId).get();
+    const participants = chatDoc.data()?.participants || [];
+    const recipientUid = participants.find(uid => uid !== msg.senderId);
+
+    if (recipientUid) {
+      const recipientDoc = await db.collection('users').doc(recipientUid).get();
+      const fcmToken = recipientDoc.data()?.fcmToken;
+
+      if (fcmToken) {
+        await admin.messaging().send({
+          token: fcmToken,
+          notification: {
+            title: \`🍻 \${msg.senderName} піднімає келих!\`,
+            body: msg.text || 'Будьмо! Цокнемось келихами!',
+          },
+          data: {
+            chatId,
+            action: 'cheers_toast_sound',
+          },
+        });
+      }
+    }
   }
 });
 
-// 3. Real-Time Chat & Cheers via Socket.IO
-io.on('connection', (socket) => {
-  console.log('Buddy connected:', socket.id);
+// 2. Гео-пошук найближчих собутильників (Firestore Bounding Box Query)
+exports.findNearbyBuddies = onRequest(async (req, res) => {
+  const { lat, lng, radiusKm = 3, drink } = req.query;
+  const latDelta = parseFloat(radiusKm) / 111.0;
+  const lngDelta = parseFloat(radiusKm) / (111.0 * Math.cos(parseFloat(lat) * (Math.PI / 180)));
 
-  socket.on('join_chat', ({ chatId }) => {
-    socket.join(chatId);
+  const centerLat = parseFloat(lat);
+  const centerLng = parseFloat(lng);
+
+  let query = db.collection('users')
+    .where('lat', '>=', centerLat - latDelta)
+    .where('lat', '<=', centerLat + latDelta);
+
+  const snapshot = await query.get();
+  const buddies = [];
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.lng >= centerLng - lngDelta && data.lng <= centerLng + lngDelta) {
+      if (!drink || (data.preferredDrinks && data.preferredDrinks.includes(drink))) {
+        buddies.push({ id: doc.id, ...data });
+      }
+    }
   });
 
-  socket.on('send_message', async (data) => {
-    // 1. Save message to MongoDB Chat collection
-    // 2. Broadcast to room
-    io.to(data.chatId).emit('receive_message', {
-      ...data,
-      createdAt: new Date(),
-    });
-  });
-
-  // Special "Дзинь! / Тост 🍻" real-time broadcast event
-  socket.on('send_toast_cheers', (data) => {
-    io.to(data.chatId).emit('receive_toast_cheers', {
-      senderId: data.senderId,
-      senderName: data.senderName,
-      toastText: data.toastText,
-      timestamp: new Date(),
-    });
-  });
-});
-
-server.listen(3000, () => console.log('Sobutylnyk Server on port 3000'));`,
+  return res.json({ count: buddies.length, buddies });
+});`,
     firebase_auth: `// src/config/firebase.ts - Firebase Auth SDK Configuration
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
@@ -590,10 +594,10 @@ end`,
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                Архітектура додатку: React Native + Expo + MongoDB + Firebase
+                Архітектура додатку: React Native + Expo + Firebase (Firestore & Auth)
               </h2>
               <p className="text-xs text-neutral-400">
-                Повний набір вихідних файлів, Mongoose схем, Socket.IO бекенду та гео-запитів
+                Повний набір вихідних файлів, правил безпеки Firestore, Cloud Functions та гео-запитів
               </p>
             </div>
           </div>
@@ -652,28 +656,28 @@ end`,
 
           <button
             type="button"
-            onClick={() => setActiveTab('mongo_schemas')}
+            onClick={() => setActiveTab('firestore_schemas')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-              activeTab === 'mongo_schemas'
+              activeTab === 'firestore_schemas'
                 ? 'bg-amber-500 text-neutral-950 shadow'
                 : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Database className="w-3.5 h-3.5" />
-            <span>MongoDB Схеми (Mongoose)</span>
+            <span>Firestore Схеми & Правила</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('backend_socket')}
+            onClick={() => setActiveTab('firebase_cloud_funcs')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-              activeTab === 'backend_socket'
+              activeTab === 'firebase_cloud_funcs'
                 ? 'bg-amber-500 text-neutral-950 shadow'
                 : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Server className="w-3.5 h-3.5" />
-            <span>Node.js + Socket.IO Backend</span>
+            <span>Firebase Cloud Functions</span>
           </button>
 
           <button
@@ -691,15 +695,15 @@ end`,
 
           <button
             type="button"
-            onClick={() => setActiveTab('mongo_runner')}
+            onClick={() => setActiveTab('firestore_runner')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-              activeTab === 'mongo_runner'
+              activeTab === 'firestore_runner'
                 ? 'bg-emerald-500 text-neutral-950 shadow'
                 : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Play className="w-3.5 h-3.5" />
-            <span>Тестер MongoDB гео-запиту ($nearSphere)</span>
+            <span>Тестер Firestore гео-запиту</span>
           </button>
 
           <button
@@ -758,12 +762,12 @@ end`,
                     <Database className="w-4 h-4" />
                     <span>База даних & Realtime</span>
                   </div>
-                  <h4 className="text-sm font-bold text-white">MongoDB + Socket.IO</h4>
+                  <h4 className="text-sm font-bold text-white">Google Cloud Firestore</h4>
                   <ul className="text-xs text-neutral-400 space-y-1.5 list-disc list-inside">
-                    <li>2dsphere індекс ($nearSphere гео-пошук)</li>
-                    <li>Mongoose моделі User, Chat, Hangout</li>
-                    <li>WebSockets для тостів та чатів</li>
-                    <li>Кімнати чату за chatId</li>
+                    <li>Offline-first кеш (працює в підвалах та барах)</li>
+                    <li>onSnapshot слухачі для миттєвих повідомлень</li>
+                    <li>Колекції users, hangouts, chats, favorites</li>
+                    <li>Декларативні Security Rules захисту даних</li>
                   </ul>
                 </div>
 
@@ -791,9 +795,9 @@ end`,
                 <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 font-mono text-xs text-neutral-300 space-y-2 leading-relaxed">
                   <div>1. <span className="text-amber-400">[Expo App]</span> запитує GPS: <code className="text-emerald-400">Location.getCurrentPositionAsync()</code></div>
                   <div>2. <span className="text-amber-400">[Expo App]</span> авторизується у <span className="text-rose-400">Firebase Auth</span> і отримує <code className="text-cyan-400">idToken</code></div>
-                  <div>3. <span className="text-amber-400">[App]</span> шле HTTP GET на <span className="text-emerald-400">/api/buddies/near?lng=30.51&lat=50.46&drink=craft</span></div>
-                  <div>4. <span className="text-emerald-400">[MongoDB]</span> виконує <code className="text-amber-300">$nearSphere</code> гео-пошук собутильників за секунду</div>
-                  <div>5. Користувач тисне <span className="text-amber-400">"Будьмо! / Дзинь!"</span> → Socket.IO емітить <code className="text-yellow-400">send_toast_cheers</code> у кімнату чату</div>
+                  <div>3. <span className="text-amber-400">[Expo App]</span> оновлює профіль: <code className="text-cyan-400">setDoc(doc(db, 'users', uid), ...coords)</code></div>
+                  <div>4. <span className="text-emerald-400">[Firestore SDK]</span> виконує гео-пошук собутильників за координатами та категорією напою</div>
+                  <div>5. Користувач тисне <span className="text-amber-400">"Будьмо! / Дзинь!"</span> → Firestore <code className="text-yellow-400">onSnapshot</code> синхронізує тост в обох користувачів без затримки</div>
                   <div>6. <span className="text-cyan-400">[CI/CD Реліз]</span> комміт тегу <code className="text-amber-300">git tag v1.0.0</code> запускає білд IPA та AAB → авто-доставка в TestFlight та Google Play 🚀</div>
                 </div>
               </div>
@@ -1135,42 +1139,42 @@ end`,
             </div>
           )}
 
-          {/* MongoDB Schemas */}
-          {activeTab === 'mongo_schemas' && (
+          {/* Firestore Schemas & Security Rules */}
+          {activeTab === 'firestore_schemas' && (
             <div className="relative">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-neutral-400 font-mono">models/User.js (Mongoose 2dsphere Schema)</span>
+                <span className="text-xs text-neutral-400 font-mono">firestore.rules (Google Cloud Firestore Rules & Schema)</span>
                 <button
                   type="button"
-                  onClick={() => handleCopy(codeSnippets.mongo_schemas, 'mongo_schemas')}
+                  onClick={() => handleCopy(codeSnippets.firestore_schemas, 'firestore_schemas')}
                   className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 rounded-lg flex items-center gap-1.5 transition"
                 >
-                  {copiedFile === 'mongo_schemas' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedFile === 'mongo_schemas' ? 'Скопійовано!' : 'Скопіювати схему'}</span>
+                  {copiedFile === 'firestore_schemas' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedFile === 'firestore_schemas' ? 'Скопійовано!' : 'Скопіювати схему'}</span>
                 </button>
               </div>
               <pre className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-200 overflow-x-auto leading-relaxed">
-                {codeSnippets.mongo_schemas}
+                {codeSnippets.firestore_schemas}
               </pre>
             </div>
           )}
 
-          {/* Node.js Socket.IO Backend */}
-          {activeTab === 'backend_socket' && (
+          {/* Firebase Cloud Functions */}
+          {activeTab === 'firebase_cloud_funcs' && (
             <div className="relative">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-neutral-400 font-mono">server.js (Express + Socket.IO + MongoDB)</span>
+                <span className="text-xs text-neutral-400 font-mono">functions/index.js (Firebase Cloud Functions v2)</span>
                 <button
                   type="button"
-                  onClick={() => handleCopy(codeSnippets.backend_socket, 'backend_socket')}
+                  onClick={() => handleCopy(codeSnippets.firebase_cloud_funcs, 'firebase_cloud_funcs')}
                   className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 rounded-lg flex items-center gap-1.5 transition"
                 >
-                  {copiedFile === 'backend_socket' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedFile === 'backend_socket' ? 'Скопійовано!' : 'Скопіювати сервер'}</span>
+                  {copiedFile === 'firebase_cloud_funcs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedFile === 'firebase_cloud_funcs' ? 'Скопійовано!' : 'Скопіювати функції'}</span>
                 </button>
               </div>
               <pre className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-200 overflow-x-auto leading-relaxed">
-                {codeSnippets.backend_socket}
+                {codeSnippets.firebase_cloud_funcs}
               </pre>
             </div>
           )}
@@ -1195,19 +1199,19 @@ end`,
             </div>
           )}
 
-          {/* MongoDB Geospatial Live Runner */}
-          {activeTab === 'mongo_runner' && (
+          {/* Firestore Geospatial Live Runner */}
+          {activeTab === 'firestore_runner' && (
             <div className="space-y-4 max-w-3xl mx-auto">
               <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800 space-y-3">
                 <h4 className="text-xs font-bold text-white flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-emerald-400" />
-                  Живий симулятор MongoDB гео-пошуку ($nearSphere):
+                  Живий симулятор Firebase Firestore гео-запиту:
                 </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
                     <label className="block text-neutral-400 mb-1 font-mono text-[11px]">
-                      $maxDistance (метри): {queryDistance} м
+                      Радіус пошуку: {queryDistance} м
                     </label>
                     <input
                       type="range"
@@ -1238,13 +1242,13 @@ end`,
 
                 <button
                   type="button"
-                  id="run-mongo-query-btn"
-                  onClick={handleRunMongoQuery}
+                  id="run-firestore-query-btn"
+                  onClick={handleRunFirestoreQuery}
                   disabled={isExecutingQuery}
                   className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 active:scale-98"
                 >
                   <Play className="w-4 h-4 fill-neutral-950" />
-                  <span>{isExecutingQuery ? 'Виконання запиту в MongoDB Atlas...' : 'Виконати db.users.find({ location: { $nearSphere: ... } })'}</span>
+                  <span>{isExecutingQuery ? 'Виконання запиту у Cloud Firestore...' : 'Виконати query(collection(db, "users"), where("preferredDrinks", "array-contains", ...))'}</span>
                 </button>
               </div>
 
@@ -1252,10 +1256,10 @@ end`,
                 <div className="bg-neutral-900 p-4 rounded-2xl border border-emerald-500/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-emerald-400">
-                      Результат MongoDB курсору (JSON documents):
+                      Результат Firestore QuerySnapshot (JSON documents):
                     </span>
                     <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800 font-mono">
-                      Query Execution: 4ms
+                      Query Execution: 12ms (Cached / Realtime)
                     </span>
                   </div>
                   <pre className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 font-mono text-xs text-neutral-200 overflow-x-auto leading-relaxed max-h-72">

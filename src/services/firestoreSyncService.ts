@@ -17,7 +17,7 @@ import {
   enableOfflineNetwork, 
   syncPendingWrites 
 } from './firebase';
-import { FavoriteVenueItem, PaymentEtiquette, DrinkType, Message, HangoutAlert } from '../types';
+import { FavoriteVenueItem, PaymentEtiquette, DrinkType, Message, HangoutAlert, UserGamificationState } from '../types';
 import { cryptoService } from './cryptoService';
 import { UserGeoLocation, calculateDistanceKm, formatDistance } from './geoService';
 import { INITIAL_HANGOUTS } from '../data/mockData';
@@ -88,6 +88,52 @@ export const firestoreSyncService = {
       return null;
     } catch (error) {
       console.warn('Could not fetch Firestore profile:', error);
+      return null;
+    }
+  },
+
+  // Sync gamification points & checkins to Firestore
+  async syncGamification(userId: string, state: UserGamificationState): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await setDoc(
+        userRef,
+        {
+          gamification: {
+            xp: state.xp,
+            level: state.level,
+            totalMeetups: state.totalMeetups,
+            achievements: state.achievements,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.warn('Could not sync gamification to Firestore:', error);
+    }
+  },
+
+  // Fetch gamification state from Firestore
+  async getUserGamification(userId: string): Promise<UserGamificationState | null> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && data.gamification) {
+          return {
+            xp: data.gamification.xp ?? 0,
+            level: data.gamification.level ?? 1,
+            totalMeetups: data.gamification.totalMeetups ?? 0,
+            achievements: data.gamification.achievements ?? [],
+            checkIns: [],
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn('Could not get gamification from Firestore:', error);
       return null;
     }
   },
@@ -494,6 +540,64 @@ export const firestoreSyncService = {
         'Збереження профілю та списку улюблених барів офлайн',
       ],
     };
+  },
+
+  /**
+   * Sync a friend document to user's Firestore subcollection
+   */
+  async syncFriend(
+    userId: string,
+    friendData: {
+      friendId: string;
+      friendName: string;
+      friendAvatar?: string;
+      tagline?: string;
+      locationName?: string;
+      drinkPreference?: string;
+    }
+  ): Promise<void> {
+    try {
+      const friendRef = doc(db, 'users', userId, 'friends', friendData.friendId);
+      await setDoc(friendRef, {
+        id: friendData.friendId,
+        userId,
+        friendId: friendData.friendId,
+        friendName: friendData.friendName,
+        friendAvatar: friendData.friendAvatar || '',
+        tagline: friendData.tagline || '',
+        locationName: friendData.locationName || '',
+        drinkPreference: friendData.drinkPreference || '',
+        addedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Could not sync friend to Firestore:', e);
+    }
+  },
+
+  /**
+   * Remove a friend document from user's Firestore subcollection
+   */
+  async removeFriendFromFirestore(userId: string, friendId: string): Promise<void> {
+    try {
+      const friendRef = doc(db, 'users', userId, 'friends', friendId);
+      await deleteDoc(friendRef);
+    } catch (e) {
+      console.warn('Could not delete friend from Firestore:', e);
+    }
+  },
+
+  /**
+   * Get all friends from Firestore subcollection
+   */
+  async getFriendsFromFirestore(userId: string): Promise<any[]> {
+    try {
+      const friendsCol = collection(db, 'users', userId, 'friends');
+      const snap = await getDocs(friendsCol);
+      return snap.docs.map((d) => d.data());
+    } catch (e) {
+      console.warn('Could not fetch friends from Firestore:', e);
+      return [];
+    }
   }
 };
 

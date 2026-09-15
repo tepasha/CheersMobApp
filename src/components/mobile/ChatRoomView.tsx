@@ -12,11 +12,14 @@ import {
   Eye,
   WifiOff,
   Database,
-  Clock
+  Clock,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { ChatThread, Message } from '../../types';
 import { sounds } from '../../services/soundService';
 import { firestoreSyncService } from '../../services/firestoreSyncService';
+import { friendsService } from '../../services/friendsService';
 import { ToastModal } from './ToastModal';
 import { SecurityInspectionModal } from './SecurityInspectionModal';
 
@@ -42,16 +45,29 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   const [floatingGlasses, setFloatingGlasses] = useState<{ id: number; x: number; y: number }[]>([]);
   const [isOnline, setIsOnline] = useState(true);
   const [isBasementMode, setIsBasementMode] = useState(false);
+  const [isFriend, setIsFriend] = useState<boolean>(() => friendsService.isFriend(chat.buddy.id));
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const unsub = firestoreSyncService.onNetworkStatusChange((online, basement) => {
+    const unsubNetwork = firestoreSyncService.onNetworkStatusChange((online, basement) => {
       setIsOnline(online);
       setIsBasementMode(basement);
     });
-    return unsub;
-  }, []);
+
+    const unsubFriend = friendsService.subscribe(() => {
+      setIsFriend(friendsService.isFriend(chat.buddy.id));
+    });
+
+    return () => {
+      unsubNetwork();
+      unsubFriend();
+    };
+  }, [chat.buddy.id]);
+
+  const handleToggleFriend = () => {
+    friendsService.toggleFriend(chat.buddy);
+  };
 
   const handleToggleBasementMode = async () => {
     sounds.playTap();
@@ -180,6 +196,31 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Friend status button */}
+          <button
+            type="button"
+            id="chat-toggle-friend-btn"
+            onClick={handleToggleFriend}
+            className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition active:scale-95 ${
+              isFriend
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                : 'bg-neutral-900 hover:bg-neutral-800 text-amber-400 border-neutral-800'
+            }`}
+            title={isFriend ? 'У ваших друзях (клікніть щоб видалити)' : 'Додати до друзів'}
+          >
+            {isFriend ? (
+              <>
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden xs:inline">Друг</span>
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden xs:inline">+ Друг</span>
+              </>
+            )}
+          </button>
+
           {/* Non-clickable E2EE Security Badge (icon only, no text) */}
           <div
             id="header-e2ee-badge"
